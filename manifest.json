@@ -3,6 +3,7 @@
   "name": "DevFill",
   "version": "1.0.0",
   "description": "Fill web forms instantly with preset or random test data. Built for developers.",
+  "homepage_url": "https://github.com/daomapsieucap/devfill",
   "permissions": ["storage", "activeTab", "scripting", "alarms"],
   "host_permissions": ["<all_urls>", "https://api.github.com/*"],
   "icons": {

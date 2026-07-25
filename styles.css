@@ -648,13 +648,13 @@ body.popup {
 }
 
 .df-check-input:checked + .df-check-label .df-check-box {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--paper);
+  border-color: var(--yellow);
 }
 
 .df-check-tick {
   display: none;
-  color: var(--yellow);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 700;

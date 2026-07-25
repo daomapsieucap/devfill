@@ -275,6 +275,11 @@
   function isFillable(el) {
     if (el.disabled || el.readOnly) return false;
     if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'reset' || el.type === 'file' || el.type === 'image') return false;
+    // Custom dropdown libraries (easy-select, Choices.js, TomSelect, select2, ...)
+    // hide the native <select> with display:none and render their own widget on
+    // top, syncing back to it via a native "change" event - it's still the real
+    // form control, so skip the visibility check that would otherwise skip it.
+    if (el.tagName === 'SELECT') return true;
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') return false;
     return true;

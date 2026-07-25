@@ -13,6 +13,8 @@ Fill web forms instantly with preset or random test data. Built for developers.
 
 </div>
 
+---
+
 ## Install (developer mode)
 
 1. Open `chrome://extensions`.

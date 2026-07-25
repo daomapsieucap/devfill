@@ -74,6 +74,76 @@ Keys it understands out of the box:
 Any other key you add to a preset is stored fine but won't be
 auto-matched unless you also extend the matching rules (see below).
 
+## Syncing presets across computers and browsers
+
+DevFill can keep your presets in sync across machines - and across
+different Chromium browsers (Chrome, Brave, Edge, Arc, etc.) - using a
+single GitHub Gist as the source of truth. This works the same everywhere
+because it doesn't depend on any browser's built-in account sync: DevFill
+talks to `api.github.com` directly with your own token, so Brave (which
+doesn't sync extension storage) behaves identically to Chrome.
+
+### 1. Create a GitHub Personal Access Token
+
+1. Go to **[github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)**
+   (GitHub's fine-grained token page).
+2. Give it a name like "DevFill sync", set an expiration you're comfortable
+   with, and under **Permissions → Account permissions → Gists**, choose
+   **Read and write**. No other permissions/repository access are needed.
+3. Generate the token and paste it into the **GitHub Personal Access
+   Token** field in DevFill's options page, under **Sync**.
+
+The token is stored only in `chrome.storage.local` on that device - it is
+never synced, never logged, and the extension only ever sends it to
+`api.github.com` (declared explicitly in `manifest.json`'s
+`host_permissions`).
+
+### 2. Connect a Gist
+
+- **Create new gist** - creates a new secret gist (visible only to you)
+  seeded with an empty preset structure, and fills in the Gist ID field.
+  Use **Push Now** afterward to upload your current local presets to it.
+- **Use existing gist & pull** - if you already have a DevFill gist (e.g.
+  from another machine), paste its ID and click this to pull its presets
+  down immediately.
+
+### 3. How sync works day-to-day
+
+- **Working store:** presets always read/write instantly from
+  `chrome.storage.local` on the current device - the Gist is only touched
+  on an explicit pull/push (or automatically, per the toggles below).
+- **Auto-pull on browser startup** (default on): once per browser launch,
+  DevFill fetches the gist and compares its `updatedAt` timestamp to the
+  local copy's. If the gist is newer, local presets are silently
+  replaced. If local is newer (or they match), nothing happens.
+- **Auto-push on change** (default on): any create/edit/delete/import is
+  pushed to the gist automatically, debounced by 3 seconds so rapid edits
+  batch into a single request. Because Manifest V3 service workers can be
+  shut down while idle, a pending auto-push can occasionally be dropped if
+  the browser terminates the worker in that 3-second window - the change
+  stays saved locally (marked "local changes pending") and will go out on
+  the next edit, the next browser startup, or a manual **Push Now**.
+- **Manual controls** (options page): **Pull Now** / **Push Now** only act
+  when there's actually something newer to pull/push, and always show a
+  confirmation (with an added/updated/removed/unchanged diff for pulls)
+  before overwriting anything. **Force Pull** / **Force Push** bypass the
+  timestamp check entirely, for when you're sure which copy should win.
+
+### Recovering from conflicts
+
+A conflict means the Gist and your local presets both changed since the
+last sync (e.g. you edited presets on two machines before either synced).
+DevFill never auto-resolves this - it always requires a manual pull or
+push in that case:
+
+- Open **options → Sync**. The status dot will read **red** (a sync error)
+  or **yellow** (local changes pending) - hover the dot for details.
+- Decide which copy should win:
+  - To keep the gist's version and discard local edits: **Force Pull**.
+  - To keep your local edits and overwrite the gist: **Force Push**.
+- If you're not sure, use **Export JSON** first as a backup of your
+  current local presets before forcing either direction.
+
 ## Extending field matching
 
 All field-detection logic lives in `content.js`:
@@ -92,11 +162,13 @@ All field-detection logic lives in `content.js`:
 
 ```
 manifest.json        Manifest V3 config, permissions, keyboard shortcut
-popup.html/js         Popup UI: preset picker, fill buttons, highlight toggle
-options.html/js       Preset management page (create/edit/delete/import/export)
+popup.html/js         Popup UI: preset picker, fill buttons, highlight toggle, sync dot
+options.html/js       Preset management + Sync section (Gist connect/pull/push)
 content.js            Field detection + filling, injected into every page
-background.js         Service worker: default preset seeding, shortcut handler
+background.js         Service worker: default seeding, auto-pull/auto-push, shortcut handler
 lib/faker.js           Small dependency-free fake data generator
+lib/presetStore.js     Preset CRUD over chrome.storage.local + sync config, auto-push hook
+lib/gistSync.js        GitHub Gist REST client (create/fetch/update, error handling)
 styles.css             Shared styling for popup + options page
 ```
 

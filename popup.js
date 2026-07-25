@@ -13,6 +13,7 @@
   const highlightToggle = document.getElementById('highlight-toggle');
   const manageLink = document.getElementById('manage-presets-link');
   const statusMsg = document.getElementById('status-msg');
+  const syncDot = document.getElementById('sync-status-dot');
 
   let presets = {};
   let settings = { lastUsedPreset: '', highlightFields: true };
@@ -45,12 +46,29 @@
   }
 
   async function loadState() {
-    const stored = await chrome.storage.local.get(['presets', 'settings']);
-    presets = stored.presets || {};
-    settings = Object.assign({ lastUsedPreset: '', highlightFields: true }, stored.settings || {});
+    presets = await DevFillPresetStore.getPresets();
+    settings = await DevFillPresetStore.getSettings();
     highlightToggle.checked = settings.highlightFields !== false;
     populatePresetDropdown();
   }
+
+  async function loadSyncDot() {
+    const config = await DevFillPresetStore.getSyncConfig();
+    const configured = !!(config.githubPat && config.gistId);
+    let color = 'gray';
+    let label = 'not configured';
+    if (configured) {
+      if (config.lastSyncStatus === 'synced') { color = 'green'; label = 'in sync'; }
+      else if (config.lastSyncStatus === 'error') { color = 'red'; label = 'error: ' + (config.lastSyncError || 'last sync failed'); }
+      else { color = 'yellow'; label = 'local changes pending'; }
+    }
+    syncDot.className = 'sync-dot sync-dot-' + color;
+    syncDot.title = 'Sync: ' + label + ' (click to manage)';
+  }
+
+  syncDot.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('options.html') + '#sync-section' });
+  });
 
   async function sendFillMessage(payload) {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -74,7 +92,7 @@
       return;
     }
     settings.lastUsedPreset = name;
-    await chrome.storage.local.set({ settings });
+    await DevFillPresetStore.setSettings(settings);
     sendFillMessage({ preset: presets[name], random: false, highlight: highlightToggle.checked });
   });
 
@@ -84,7 +102,7 @@
 
   highlightToggle.addEventListener('change', async () => {
     settings.highlightFields = highlightToggle.checked;
-    await chrome.storage.local.set({ settings });
+    await DevFillPresetStore.setSettings(settings);
   });
 
   manageLink.addEventListener('click', (e) => {
@@ -93,4 +111,5 @@
   });
 
   loadState();
+  loadSyncDot();
 })();

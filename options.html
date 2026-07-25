@@ -46,6 +46,57 @@
     </section>
   </main>
 
+  <section id="sync-section" class="sync-section">
+    <h2 class="sync-title">
+      Sync
+      <span id="sync-status-dot" class="sync-dot sync-dot-gray" title="Not configured"></span>
+      <span id="sync-status-text" class="sync-status-text">Not configured</span>
+    </h2>
+    <p class="sync-hint">
+      Presets are cached locally in this browser and synced across machines
+      and browsers through a single GitHub Gist.
+    </p>
+
+    <div class="sync-grid">
+      <label class="field-label" for="pat-input">GitHub Personal Access Token</label>
+      <input type="password" id="pat-input" placeholder="github_pat_..." autocomplete="off" />
+      <p class="sync-subhint">
+        Stored only in this browser's local storage, never synced.
+        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained PAT</a>
+        with read/write access to Gists only.
+      </p>
+
+      <label class="field-label" for="gist-id-input">Gist ID</label>
+      <input type="text" id="gist-id-input" placeholder="e.g. 8f3a1c2b9d4e5f6a7b8c9d0e1f2a3b4c" />
+      <div class="sync-btn-row">
+        <button type="button" id="create-gist-btn" class="btn btn-secondary btn-small">Create new gist</button>
+        <button type="button" id="use-gist-btn" class="btn btn-secondary btn-small">Use existing gist &amp; pull</button>
+      </div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="auto-pull-toggle" />
+        <span>Auto-pull on browser startup</span>
+      </label>
+      <label class="toggle-row">
+        <input type="checkbox" id="auto-push-toggle" />
+        <span>Auto-push on change (debounced 3s)</span>
+      </label>
+
+      <p class="sync-subhint">Last synced: <span id="last-synced-text">Never</span></p>
+
+      <div class="sync-btn-row">
+        <button type="button" id="pull-now-btn" class="btn btn-secondary btn-small">Pull Now</button>
+        <button type="button" id="push-now-btn" class="btn btn-secondary btn-small">Push Now</button>
+        <button type="button" id="force-pull-btn" class="btn btn-danger btn-small">Force Pull</button>
+        <button type="button" id="force-push-btn" class="btn btn-danger btn-small">Force Push</button>
+      </div>
+
+      <p id="sync-msg" class="status-msg"></p>
+    </div>
+  </section>
+
+  <script src="lib/presetStore.js"></script>
+  <script src="lib/gistSync.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

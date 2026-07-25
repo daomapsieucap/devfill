@@ -36,6 +36,7 @@ body.popup {
 .popup-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -254,4 +255,73 @@ body.options {
   display: flex;
   gap: 10px;
   margin-top: 4px;
+}
+
+/* ---------- Sync status dot ---------- */
+
+.sync-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sync-dot-gray { background: #b5b9c4; }
+.sync-dot-green { background: #22c55e; }
+.sync-dot-yellow { background: #eab308; }
+.sync-dot-red { background: #ef4444; }
+
+/* ---------- Sync section (options page) ---------- */
+
+.sync-section {
+  max-width: 520px;
+  margin: 0 auto 32px;
+  padding: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.sync-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.sync-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.sync-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.sync-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-subhint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin: 0 0 6px;
+}
+
+.sync-subhint a {
+  color: var(--color-primary);
+}
+
+.sync-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 10px;
 }

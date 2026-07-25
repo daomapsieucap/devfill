@@ -3,9 +3,15 @@
  * Presets are edited as raw JSON key/value pairs (see PRESET_KEY_MAP in
  * content.js for which keys DevFill recognizes out of the box - any
  * other key is preserved but won't be auto-matched to a field).
+ *
+ * All preset mutations go through `DevFillPresetStore` (lib/presetStore.js)
+ * so the auto-push-to-gist hook stays centralized there instead of being
+ * duplicated at every call site here.
  */
 (function () {
   'use strict';
+
+  // ---- Preset list/editor elements ---------------------------------------
 
   const presetListEl = document.getElementById('preset-list');
   const newPresetBtn = document.getElementById('new-preset-btn');
@@ -19,20 +25,35 @@
   const importBtn = document.getElementById('import-btn');
   const importFileInput = document.getElementById('import-file-input');
 
+  // ---- Sync section elements ----------------------------------------------
+
+  const patInput = document.getElementById('pat-input');
+  const gistIdInput = document.getElementById('gist-id-input');
+  const createGistBtn = document.getElementById('create-gist-btn');
+  const useGistBtn = document.getElementById('use-gist-btn');
+  const autoPullToggle = document.getElementById('auto-pull-toggle');
+  const autoPushToggle = document.getElementById('auto-push-toggle');
+  const lastSyncedText = document.getElementById('last-synced-text');
+  const pullNowBtn = document.getElementById('pull-now-btn');
+  const pushNowBtn = document.getElementById('push-now-btn');
+  const forcePullBtn = document.getElementById('force-pull-btn');
+  const forcePushBtn = document.getElementById('force-push-btn');
+  const syncMsg = document.getElementById('sync-msg');
+  const syncDot = document.getElementById('sync-status-dot');
+  const syncStatusText = document.getElementById('sync-status-text');
+
   let presets = {};
   let settings = {};
+  let syncConfig = {};
   let selectedName = null; // name currently loaded in the editor
   let isNew = false;
 
-  async function loadState() {
-    const stored = await chrome.storage.local.get(['presets', 'settings']);
-    presets = stored.presets || {};
-    settings = stored.settings || {};
-    renderList();
-  }
+  // ---- Preset list/editor -------------------------------------------------
 
-  async function persistPresets() {
-    await chrome.storage.local.set({ presets });
+  async function loadState() {
+    presets = await DevFillPresetStore.getPresets();
+    settings = await DevFillPresetStore.getSettings();
+    renderList();
   }
 
   function renderList() {
@@ -78,6 +99,13 @@
     form.hidden = false;
   }
 
+  function closeForm() {
+    selectedName = null;
+    form.hidden = true;
+    emptyState.hidden = false;
+    renderList();
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = nameInput.value.trim();
@@ -97,13 +125,8 @@
       return;
     }
 
-    // Renaming: drop the old key if the name changed.
-    if (!isNew && selectedName && selectedName !== name) {
-      delete presets[selectedName];
-    }
-
-    presets[name] = parsed;
-    await persistPresets();
+    const store = await DevFillPresetStore.savePreset(name, parsed, isNew ? null : selectedName);
+    presets = store.presets;
     jsonError.textContent = '';
     selectPreset(name);
   });
@@ -112,17 +135,15 @@
     if (!selectedName || !presets[selectedName]) return;
     if (!confirm(`Delete preset "${selectedName}"?`)) return;
 
-    delete presets[selectedName];
+    const store = await DevFillPresetStore.deletePreset(selectedName);
+    presets = store.presets;
+
     if (settings.lastUsedPreset === selectedName) {
       settings.lastUsedPreset = Object.keys(presets)[0] || '';
-      await chrome.storage.local.set({ settings });
+      await DevFillPresetStore.setSettings(settings);
     }
-    await persistPresets();
 
-    selectedName = null;
-    form.hidden = true;
-    emptyState.hidden = false;
-    renderList();
+    closeForm();
   });
 
   newPresetBtn.addEventListener('click', startNewPreset);
@@ -148,13 +169,9 @@
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
         throw new Error('Root of imported JSON must be an object of { presetName: {fields} }.');
       }
-      // Merge: imported names overwrite existing names with the same key.
-      presets = Object.assign({}, presets, parsed);
-      await persistPresets();
-      selectedName = null;
-      form.hidden = true;
-      emptyState.hidden = false;
-      renderList();
+      const store = await DevFillPresetStore.importPresets(parsed, 'merge');
+      presets = store.presets;
+      closeForm();
       alert(`Imported ${Object.keys(parsed).length} preset(s).`);
     } catch (err) {
       alert('Import failed: ' + err.message);
@@ -163,5 +180,217 @@
     }
   });
 
+  // ---- Sync section ---------------------------------------------------------
+
+  async function loadSyncState() {
+    syncConfig = await DevFillPresetStore.getSyncConfig();
+    patInput.value = syncConfig.githubPat || '';
+    gistIdInput.value = syncConfig.gistId || '';
+    autoPullToggle.checked = !!syncConfig.autoPullOnStartup;
+    autoPushToggle.checked = !!syncConfig.autoPushOnChange;
+    renderSyncStatus();
+  }
+
+  function renderSyncStatus() {
+    const configured = !!(syncConfig.githubPat && syncConfig.gistId);
+    let color = 'gray';
+    let label = 'Not configured';
+    let title = 'Add a PAT and Gist ID below to enable sync.';
+
+    if (configured) {
+      if (syncConfig.lastSyncStatus === 'synced') {
+        color = 'green'; label = 'In sync'; title = 'Local presets match the gist.';
+      } else if (syncConfig.lastSyncStatus === 'error') {
+        color = 'red'; label = 'Sync error'; title = syncConfig.lastSyncError || 'The last sync attempt failed.';
+      } else if (syncConfig.lastSyncStatus === 'pending') {
+        color = 'yellow'; label = 'Local changes pending'; title = 'Local presets changed since the last sync.';
+      } else {
+        color = 'yellow'; label = 'Not yet synced'; title = 'Configured but never synced - use Pull Now or Push Now.';
+      }
+    }
+
+    syncDot.className = 'sync-dot sync-dot-' + color;
+    syncDot.title = title;
+    syncStatusText.textContent = label;
+    lastSyncedText.textContent = syncConfig.lastSyncedAt ? formatTimestamp(syncConfig.lastSyncedAt) : 'Never';
+
+    pullNowBtn.disabled = !configured;
+    pushNowBtn.disabled = !configured;
+    forcePullBtn.disabled = !configured;
+    forcePushBtn.disabled = !configured;
+    createGistBtn.disabled = !syncConfig.githubPat;
+    useGistBtn.disabled = !syncConfig.githubPat;
+  }
+
+  function formatTimestamp(iso) {
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  function showSyncMsg(text, isError) {
+    syncMsg.textContent = text;
+    syncMsg.classList.toggle('status-error', !!isError);
+  }
+
+  function friendlyError(err) {
+    if (err && err.name === 'GistSyncError') return err.message;
+    return 'Unexpected error: ' + (err && err.message ? err.message : String(err));
+  }
+
+  patInput.addEventListener('change', async () => {
+    syncConfig = await DevFillPresetStore.setSyncConfig({ githubPat: patInput.value.trim() });
+    renderSyncStatus();
+  });
+
+  gistIdInput.addEventListener('change', async () => {
+    syncConfig = await DevFillPresetStore.setSyncConfig({ gistId: gistIdInput.value.trim() });
+    renderSyncStatus();
+  });
+
+  autoPullToggle.addEventListener('change', async () => {
+    syncConfig = await DevFillPresetStore.setSyncConfig({ autoPullOnStartup: autoPullToggle.checked });
+  });
+
+  autoPushToggle.addEventListener('change', async () => {
+    syncConfig = await DevFillPresetStore.setSyncConfig({ autoPushOnChange: autoPushToggle.checked });
+  });
+
+  createGistBtn.addEventListener('click', async () => {
+    if (!syncConfig.githubPat) { showSyncMsg('Enter a GitHub PAT first.', true); return; }
+    createGistBtn.disabled = true;
+    showSyncMsg('Creating gist...');
+    try {
+      const { gistId } = await DevFillGistSync.createGist(syncConfig.githubPat);
+      gistIdInput.value = gistId;
+      syncConfig = await DevFillPresetStore.setSyncConfig({
+        gistId,
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced',
+        lastSyncError: null
+      });
+      showSyncMsg('Created an empty gist. Use "Push Now" to upload your local presets.');
+    } catch (err) {
+      showSyncMsg(friendlyError(err), true);
+    } finally {
+      renderSyncStatus();
+    }
+  });
+
+  useGistBtn.addEventListener('click', async () => {
+    const id = gistIdInput.value.trim();
+    if (!id) { showSyncMsg('Enter a gist ID first.', true); return; }
+    if (!syncConfig.githubPat) { showSyncMsg('Enter a GitHub PAT first.', true); return; }
+    syncConfig = await DevFillPresetStore.setSyncConfig({ gistId: id });
+    await handlePull({ force: true, skipConfirm: true });
+  });
+
+  pullNowBtn.addEventListener('click', () => handlePull({ force: false }));
+  forcePullBtn.addEventListener('click', () => handlePull({ force: true }));
+  pushNowBtn.addEventListener('click', () => handlePush({ force: false }));
+  forcePushBtn.addEventListener('click', () => handlePush({ force: true }));
+
+  async function handlePull({ force, skipConfirm }) {
+    syncConfig = await DevFillPresetStore.getSyncConfig();
+    if (!syncConfig.githubPat || !syncConfig.gistId) { showSyncMsg('Set a PAT and Gist ID first.', true); return; }
+
+    showSyncMsg('Fetching gist...');
+    try {
+      const remote = await DevFillGistSync.fetchGist(syncConfig.githubPat, syncConfig.gistId);
+      const local = await DevFillPresetStore.getStore();
+      const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+      const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
+
+      if (!force && localTime >= remoteTime) {
+        showSyncMsg('Local presets are already up to date. Use "Force Pull" to overwrite anyway.');
+        return;
+      }
+
+      if (!skipConfirm) {
+        const diff = DevFillGistSync.diffPresets(local.presets, remote.presets);
+        const summary = `Added: ${diff.added.length}   Updated: ${diff.updated.length}   Removed: ${diff.removed.length}   Unchanged: ${diff.unchanged.length}`;
+        const warning = (force && localTime > remoteTime)
+          ? 'Your local presets are newer than the gist. Force-pulling will discard those local changes.\n\n'
+          : '';
+        const proceed = confirm(`Pull from gist?\n\n${warning}${summary}\n\nThis replaces your local presets.`);
+        if (!proceed) { showSyncMsg(''); return; }
+      }
+
+      await DevFillPresetStore.setStore(remote, { silent: true });
+      syncConfig = await DevFillPresetStore.setSyncConfig({
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced',
+        lastSyncError: null
+      });
+
+      presets = remote.presets;
+      closeForm();
+      showSyncMsg(`Pulled ${Object.keys(remote.presets).length} preset(s) from the gist.`);
+    } catch (err) {
+      syncConfig = await DevFillPresetStore.setSyncConfig({ lastSyncStatus: 'error', lastSyncError: err.message || 'Pull failed.' });
+      showSyncMsg(friendlyError(err), true);
+    } finally {
+      renderSyncStatus();
+    }
+  }
+
+  async function handlePush({ force }) {
+    syncConfig = await DevFillPresetStore.getSyncConfig();
+    if (!syncConfig.githubPat || !syncConfig.gistId) { showSyncMsg('Set a PAT and Gist ID first.', true); return; }
+
+    showSyncMsg('Checking gist...');
+    try {
+      const remote = await DevFillGistSync.fetchGist(syncConfig.githubPat, syncConfig.gistId);
+      const local = await DevFillPresetStore.getStore();
+      const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+      const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
+
+      if (!force && remoteTime > localTime) {
+        showSyncMsg('The gist has changes newer than your last sync (maybe from another device). Pull first, or use "Force Push" to overwrite it.', true);
+        return;
+      }
+      if (force && remoteTime > localTime) {
+        const proceed = confirm('The gist has changes newer than your local copy. Force-pushing will overwrite them on GitHub.\n\nContinue?');
+        if (!proceed) { showSyncMsg(''); return; }
+      }
+
+      showSyncMsg('Pushing...');
+      const result = await DevFillGistSync.updateGist(syncConfig.githubPat, syncConfig.gistId, local.presets);
+      await DevFillPresetStore.setStore(result.schema, { silent: true });
+      syncConfig = await DevFillPresetStore.setSyncConfig({
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced',
+        lastSyncError: null
+      });
+      showSyncMsg('Pushed local presets to the gist.');
+    } catch (err) {
+      syncConfig = await DevFillPresetStore.setSyncConfig({ lastSyncStatus: 'error', lastSyncError: err.message || 'Push failed.' });
+      showSyncMsg(friendlyError(err), true);
+    } finally {
+      renderSyncStatus();
+    }
+  }
+
+  // Keep the UI live if background.js changes syncConfig/presets (e.g. an
+  // auto-pull on startup, or an auto-push finishing its 3s debounce).
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.syncConfig) {
+      syncConfig = Object.assign({}, syncConfig, changes.syncConfig.newValue);
+      renderSyncStatus();
+    }
+    if (changes.presets && !form.contains(document.activeElement)) {
+      presets = (changes.presets.newValue && changes.presets.newValue.presets) || {};
+      renderList();
+    }
+  });
+
+  if (location.hash === '#sync-section') {
+    document.getElementById('sync-section').scrollIntoView({ behavior: 'smooth' });
+  }
+
   loadState();
+  loadSyncState();
 })();

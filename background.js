@@ -1,8 +1,12 @@
 /**
  * DevFill background service worker.
- * - Seeds default presets/settings on first install.
+ * - Seeds default presets on first install.
+ * - Auto-pulls from the configured Gist on browser startup / extension install.
+ * - Debounces an auto-push to the Gist whenever presets change locally.
  * - Handles the Alt+Shift+F keyboard shortcut to fill with the last used preset.
  */
+
+importScripts('lib/presetStore.js', 'lib/gistSync.js');
 
 const DEFAULT_PRESETS = {
   'Default User': {
@@ -70,19 +74,111 @@ const DEFAULT_PRESETS = {
   }
 };
 
-const DEFAULT_SETTINGS = {
-  lastUsedPreset: 'Default User',
-  highlightFields: true
-};
-
 chrome.runtime.onInstalled.addListener(async (details) => {
-  if (details.reason !== 'install') return;
-  const existing = await chrome.storage.local.get(['presets', 'settings']);
-  const toSet = {};
-  if (!existing.presets) toSet.presets = DEFAULT_PRESETS;
-  if (!existing.settings) toSet.settings = DEFAULT_SETTINGS;
-  if (Object.keys(toSet).length) await chrome.storage.local.set(toSet);
+  if (details.reason === 'install') {
+    const existing = await DevFillPresetStore.getStore();
+    if (Object.keys(existing.presets).length === 0 && !existing.updatedAt) {
+      await DevFillPresetStore.setStore(
+        { version: 1, updatedAt: new Date().toISOString(), presets: DEFAULT_PRESETS },
+        { silent: true }
+      );
+    }
+    const settings = await DevFillPresetStore.getSettings();
+    if (!settings.lastUsedPreset) {
+      await DevFillPresetStore.setSettings({ lastUsedPreset: 'Default User', highlightFields: true });
+    }
+  }
+  runStartupAutoPull();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  runStartupAutoPull();
+});
+
+// ---- Auto-pull on startup -------------------------------------------------
+//
+// Fetches the Gist, compares `updatedAt` timestamps, and only overwrites
+// local presets if the remote copy is strictly newer. Never blocks the
+// user and never throws - failures are recorded in syncConfig for the
+// popup/options page to surface.
+async function runStartupAutoPull() {
+  const config = await DevFillPresetStore.getSyncConfig();
+  if (!config.autoPullOnStartup || !config.githubPat || !config.gistId) return;
+
+  try {
+    const remote = await DevFillGistSync.fetchGist(config.githubPat, config.gistId);
+    const local = await DevFillPresetStore.getStore();
+    const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+    const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
+
+    if (remoteTime > localTime) {
+      await DevFillPresetStore.setStore(remote, { silent: true });
+      await DevFillPresetStore.setSyncConfig({
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced',
+        lastSyncError: null
+      });
+    } else {
+      // Local is newer (or equal) - a push will handle reconciling it.
+      await DevFillPresetStore.setSyncConfig({
+        lastSyncStatus: localTime > remoteTime ? 'pending' : 'synced'
+      });
+    }
+  } catch (err) {
+    console.error('[DevFill] Auto-pull failed:', err.message);
+    await DevFillPresetStore.setSyncConfig({
+      lastSyncStatus: 'error',
+      lastSyncError: err.message || 'Auto-pull failed.'
+    });
+  }
+}
+
+// ---- Auto-push on change ---------------------------------------------------
+//
+// presetStore.js broadcasts `devfill-presets-changed` after any local
+// create/edit/delete/import. Debounced 3s so rapid edits batch into one
+// push. Note: MV3 service workers can be terminated while idle, and a
+// pending setTimeout does not survive that - if the worker is killed
+// mid-debounce, the edit stays local (status "pending") until the next
+// mutation, browser restart, or a manual "Push Now".
+let pushTimer = null;
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message && message.action === 'devfill-presets-changed') {
+    scheduleAutoPush();
+  }
+});
+
+function scheduleAutoPush() {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(runAutoPush, 3000);
+}
+
+async function runAutoPush() {
+  pushTimer = null;
+  const config = await DevFillPresetStore.getSyncConfig();
+  if (!config.autoPushOnChange || !config.githubPat || !config.gistId) return;
+
+  try {
+    const store = await DevFillPresetStore.getStore();
+    const result = await DevFillGistSync.updateGist(config.githubPat, config.gistId, store.presets);
+    // Adopt the pushed schema's updatedAt locally so future comparisons agree.
+    await DevFillPresetStore.setStore(result.schema, { silent: true });
+    await DevFillPresetStore.setSyncConfig({
+      lastSyncedAt: new Date().toISOString(),
+      lastSyncStatus: 'synced',
+      lastSyncError: null
+    });
+  } catch (err) {
+    console.error('[DevFill] Auto-push failed:', err.message);
+    await DevFillPresetStore.setSyncConfig({
+      lastSyncStatus: 'error',
+      lastSyncError: err.message || 'Auto-push failed.'
+    });
+  }
+}
+
+// ---- Keyboard shortcut ------------------------------------------------
 
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== 'fill-last-preset') return;
@@ -90,9 +186,9 @@ chrome.commands.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) return;
 
-  const { presets = {}, settings = {} } = await chrome.storage.local.get(['presets', 'settings']);
-  const presetName = settings.lastUsedPreset;
-  const preset = (presetName && presets[presetName]) || {};
+  const presets = await DevFillPresetStore.getPresets();
+  const settings = await DevFillPresetStore.getSettings();
+  const preset = (settings.lastUsedPreset && presets[settings.lastUsedPreset]) || {};
 
   chrome.tabs.sendMessage(tab.id, {
     action: 'devfill-fill',

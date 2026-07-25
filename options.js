@@ -82,8 +82,31 @@
     selectedName = null;
     isNew = true;
     nameInput.value = '';
+    // Every key DevFill auto-matches (see PRESET_KEY_MAP in content.js /
+    // "Recognized field keys" in the README), pre-filled blank so a new
+    // preset can just be edited in place instead of looked up elsewhere.
     jsonInput.value = JSON.stringify(
-      { firstName: '', lastName: '', email: '', phone: '', company: '', message: '' },
+      {
+        firstName: '',
+        lastName: '',
+        fullName: '',
+        email: '',
+        phone: '',
+        company: '',
+        jobTitle: '',
+        website: '',
+        username: '',
+        password: '',
+        address: '',
+        address2: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: '',
+        message: '',
+        birthDate: '',
+        age: ''
+      },
       null,
       2
     );

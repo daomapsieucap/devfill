@@ -10,6 +10,7 @@ Fill web forms instantly with preset or random test data. Built for developers.
 ![Vanilla JS](https://img.shields.io/badge/JavaScript-Vanilla-f7df1e?style=flat-square)
 ![No build step](https://img.shields.io/badge/build%20step-none-6b7280?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-22c55e?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 </div>
 
@@ -39,30 +40,31 @@ Fill web forms instantly with preset or random test data. Built for developers.
 ## Managing presets
 
 Click **Manage Presets** in the popup (or open the extension's options
-page directly) to:
+page directly) to create, rename, edit, or delete presets.
 
-- Create, rename, edit, or delete presets.
-- Edit each preset as a JSON object of key/value pairs, e.g.:
+Click **+ New Preset** and you'll get a form already filled in with every
+field DevFill knows how to auto-match - just type in the values you want
+and delete any fields you don't need:
 
-  ```json
-  {
-    "firstName": "Ada",
-    "lastName": "Lovelace",
-    "email": "ada@example.com",
-    "phone": "(555) 010-1000",
-    "company": "Analytical Engines Ltd",
-    "city": "London",
-    "country": "United Kingdom",
-    "message": "Custom test message."
-  }
-  ```
+```json
+{
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "email": "ada@example.com",
+  "phone": "(555) 010-1000",
+  "company": "Analytical Engines Ltd",
+  "city": "London",
+  "country": "United Kingdom",
+  "message": "Custom test message."
+}
+```
 
-- **Export JSON** downloads all presets as a single file; **Import JSON**
-  merges a file of the same shape (`{ "Preset Name": { ...fields } }`) back
-  in, overwriting any existing presets with matching names.
+A single empty **Default** preset ships out of the box - fill it in and
+rename it, or delete it once you've made your own.
 
-A single empty **Default** preset ships out of the box - fill in its
-fields (or add your own presets) from the options page.
+**Export JSON** downloads all presets as a single file; **Import JSON**
+merges a file of the same shape (`{ "Preset Name": { ...fields } }`) back
+in, overwriting any existing presets with matching names.
 
 ## Syncing presets across computers and browsers
 

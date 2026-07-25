@@ -7,9 +7,8 @@
 (function () {
   'use strict';
 
-  const RANDOM_VALUE = '__random__';
-
   const presetSelect = document.getElementById('preset-select');
+  const presetSelectWrap = document.getElementById('preset-select-wrap');
   const presetCountEl = document.getElementById('df-preset-count');
   const versionEl = document.getElementById('df-version');
   const fillPresetBtn = document.getElementById('fill-preset-btn');
@@ -39,18 +38,20 @@
     const names = Object.keys(presets);
     presetCountEl.textContent = '01 · ' + names.length;
 
-    const randomOpt = document.createElement('option');
-    randomOpt.value = RANDOM_VALUE;
-    randomOpt.textContent = 'Random';
-    presetSelect.appendChild(randomOpt);
-
+    if (names.length === 0) {
+      presetSelectWrap.hidden = true;
+      fillPresetBtn.disabled = true;
+      return;
+    }
+    presetSelectWrap.hidden = false;
+    fillPresetBtn.disabled = false;
     names.forEach((name) => {
       const opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
       presetSelect.appendChild(opt);
     });
-    presetSelect.value = names.includes(settings.lastUsedPreset) ? settings.lastUsedPreset : RANDOM_VALUE;
+    presetSelect.value = names.includes(settings.lastUsedPreset) ? settings.lastUsedPreset : names[0];
   }
 
   // "2m ago" / "3h ago" / "5d ago" - popups are short-lived, so this is
@@ -149,11 +150,6 @@
 
   fillPresetBtn.addEventListener('click', async () => {
     const name = presetSelect.value;
-    checkRemoteForChanges('pre-fill');
-    if (name === RANDOM_VALUE) {
-      sendFillMessage({ preset: {}, random: true, highlight: highlightToggle.checked });
-      return;
-    }
     if (!name || !presets[name]) {
       showStatus('Select a preset first.', true);
       return;
@@ -163,6 +159,7 @@
     // Fire-and-forget - don't make the fill wait on a network round trip.
     // The popup-open check (below) already made the local copy near-certain
     // to be current by the time the user gets around to clicking this.
+    checkRemoteForChanges('pre-fill');
     sendFillMessage({ preset: presets[name], random: false, highlight: highlightToggle.checked });
   });
 

@@ -75,22 +75,21 @@
       </div>
 
       <label class="toggle-row">
-        <input type="checkbox" id="auto-pull-toggle" />
-        <span>Auto-pull on browser startup</span>
-      </label>
-      <label class="toggle-row">
-        <input type="checkbox" id="auto-push-toggle" />
-        <span>Auto-push on change (debounced 3s)</span>
+        <input type="checkbox" id="auto-sync-toggle" />
+        <span>Keep in sync automatically (pull on open, push on change)</span>
       </label>
 
       <p class="sync-subhint">Last synced: <span id="last-synced-text">Never</span></p>
 
       <div class="sync-btn-row">
-        <button type="button" id="pull-now-btn" class="btn btn-secondary btn-small">Pull Now</button>
-        <button type="button" id="push-now-btn" class="btn btn-secondary btn-small">Push Now</button>
+        <button type="button" id="sync-now-btn" class="btn btn-secondary btn-small">Sync Now</button>
         <button type="button" id="force-pull-btn" class="btn btn-danger btn-small">Force Pull</button>
         <button type="button" id="force-push-btn" class="btn btn-danger btn-small">Force Push</button>
       </div>
+      <p class="sync-subhint">
+        Force Pull/Push skip the "which side is newer" check - use them only to
+        resolve a conflict deliberately, in the direction you want to win.
+      </p>
 
       <p id="sync-msg" class="status-msg"></p>
     </div>

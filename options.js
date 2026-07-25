@@ -31,11 +31,9 @@
   const gistIdInput = document.getElementById('gist-id-input');
   const createGistBtn = document.getElementById('create-gist-btn');
   const useGistBtn = document.getElementById('use-gist-btn');
-  const autoPullToggle = document.getElementById('auto-pull-toggle');
-  const autoPushToggle = document.getElementById('auto-push-toggle');
+  const autoSyncToggle = document.getElementById('auto-sync-toggle');
   const lastSyncedText = document.getElementById('last-synced-text');
-  const pullNowBtn = document.getElementById('pull-now-btn');
-  const pushNowBtn = document.getElementById('push-now-btn');
+  const syncNowBtn = document.getElementById('sync-now-btn');
   const forcePullBtn = document.getElementById('force-pull-btn');
   const forcePushBtn = document.getElementById('force-push-btn');
   const syncMsg = document.getElementById('sync-msg');
@@ -209,8 +207,7 @@
     syncConfig = await DevFillPresetStore.getSyncConfig();
     patInput.value = syncConfig.githubPat || '';
     gistIdInput.value = syncConfig.gistId || '';
-    autoPullToggle.checked = !!syncConfig.autoPullOnStartup;
-    autoPushToggle.checked = !!syncConfig.autoPushOnChange;
+    autoSyncToggle.checked = !!(syncConfig.autoPullOnStartup && syncConfig.autoPushOnChange);
     renderSyncStatus();
   }
 
@@ -228,7 +225,7 @@
       } else if (syncConfig.lastSyncStatus === 'pending') {
         color = 'yellow'; label = 'Local changes pending'; title = 'Local presets changed since the last sync.';
       } else {
-        color = 'yellow'; label = 'Not yet synced'; title = 'Configured but never synced - use Pull Now or Push Now.';
+        color = 'yellow'; label = 'Not yet synced'; title = 'Configured but never synced - use Sync Now.';
       }
     }
 
@@ -237,8 +234,7 @@
     syncStatusText.textContent = label;
     lastSyncedText.textContent = syncConfig.lastSyncedAt ? formatTimestamp(syncConfig.lastSyncedAt) : 'Never';
 
-    pullNowBtn.disabled = !configured;
-    pushNowBtn.disabled = !configured;
+    syncNowBtn.disabled = !configured;
     forcePullBtn.disabled = !configured;
     forcePushBtn.disabled = !configured;
     createGistBtn.disabled = !syncConfig.githubPat;
@@ -273,12 +269,11 @@
     renderSyncStatus();
   });
 
-  autoPullToggle.addEventListener('change', async () => {
-    syncConfig = await DevFillPresetStore.setSyncConfig({ autoPullOnStartup: autoPullToggle.checked });
-  });
-
-  autoPushToggle.addEventListener('change', async () => {
-    syncConfig = await DevFillPresetStore.setSyncConfig({ autoPushOnChange: autoPushToggle.checked });
+  autoSyncToggle.addEventListener('change', async () => {
+    syncConfig = await DevFillPresetStore.setSyncConfig({
+      autoPullOnStartup: autoSyncToggle.checked,
+      autoPushOnChange: autoSyncToggle.checked
+    });
   });
 
   createGistBtn.addEventListener('click', async () => {
@@ -294,7 +289,7 @@
         lastSyncStatus: 'synced',
         lastSyncError: null
       });
-      showSyncMsg('Created an empty gist. Use "Push Now" to upload your local presets.');
+      showSyncMsg('Created an empty gist. Use "Sync Now" to upload your local presets.');
     } catch (err) {
       showSyncMsg(friendlyError(err), true);
     } finally {
@@ -310,10 +305,40 @@
     await handlePull({ force: true, skipConfirm: true });
   });
 
-  pullNowBtn.addEventListener('click', () => handlePull({ force: false }));
+  syncNowBtn.addEventListener('click', handleSyncNow);
   forcePullBtn.addEventListener('click', () => handlePull({ force: true }));
-  pushNowBtn.addEventListener('click', () => handlePush({ force: false }));
   forcePushBtn.addEventListener('click', () => handlePush({ force: true }));
+
+  // Figures out the direction itself instead of making the user pick
+  // Pull vs Push: whichever side (local or gist) has the newer
+  // `updatedAt` wins, same rule the automatic background checks use.
+  async function handleSyncNow() {
+    syncConfig = await DevFillPresetStore.getSyncConfig();
+    if (!syncConfig.githubPat || !syncConfig.gistId) { showSyncMsg('Set a PAT and Gist ID first.', true); return; }
+
+    showSyncMsg('Checking gist...');
+    try {
+      const remote = await DevFillGistSync.fetchGist(syncConfig.githubPat, syncConfig.gistId);
+      const local = await DevFillPresetStore.getStore();
+      const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+      const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
+
+      if (remoteTime > localTime) return handlePull({ force: false });
+      if (localTime > remoteTime) return handlePush({ force: false });
+
+      syncConfig = await DevFillPresetStore.setSyncConfig({
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced',
+        lastSyncError: null
+      });
+      showSyncMsg('Already in sync.');
+      renderSyncStatus();
+    } catch (err) {
+      syncConfig = await DevFillPresetStore.setSyncConfig({ lastSyncStatus: 'error', lastSyncError: err.message || 'Sync check failed.' });
+      showSyncMsg(friendlyError(err), true);
+      renderSyncStatus();
+    }
+  }
 
   async function handlePull({ force, skipConfirm }) {
     syncConfig = await DevFillPresetStore.getSyncConfig();
@@ -371,7 +396,7 @@
       const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
 
       if (!force && remoteTime > localTime) {
-        showSyncMsg('The gist has changes newer than your last sync (maybe from another device). Pull first, or use "Force Push" to overwrite it.', true);
+        showSyncMsg('The gist has changes newer than your last sync (maybe from another device). Use "Sync Now" to pull them, or "Force Push" to overwrite them.', true);
         return;
       }
       if (force && remoteTime > localTime) {
@@ -397,7 +422,7 @@
   }
 
   // Keep the UI live if background.js changes syncConfig/presets (e.g. an
-  // auto-pull on startup, or an auto-push finishing its 3s debounce).
+  // auto-pull, or an auto-push landing after its alarm fires).
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes.syncConfig) {
@@ -416,4 +441,8 @@
 
   loadState();
   loadSyncState();
+  // Editing presets directly from this page (without ever opening the
+  // popup) shouldn't miss out on the same JIT auto-pull check the popup
+  // triggers on open - fire-and-forget, background.js does the real work.
+  chrome.runtime.sendMessage({ action: 'devfill-check-remote', reason: 'options-open' }).catch(() => {});
 })();

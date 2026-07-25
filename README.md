@@ -104,7 +104,7 @@ never synced, never logged, and the extension only ever sends it to
 
 - **Create new gist** - creates a new secret gist (visible only to you)
   seeded with an empty preset structure, and fills in the Gist ID field.
-  Use **Push Now** afterward to upload your current local presets to it.
+  Use **Sync Now** afterward to upload your current local presets to it.
 - **Use existing gist & pull** - if you already have a DevFill gist (e.g.
   from another machine), paste its ID and click this to pull its presets
   down immediately.
@@ -113,23 +113,26 @@ never synced, never logged, and the extension only ever sends it to
 
 - **Working store:** presets always read/write instantly from
   `chrome.storage.local` on the current device - the Gist is only touched
-  on an explicit pull/push (or automatically, per the toggles below).
-- **Auto-pull on browser startup** (default on): once per browser launch,
-  DevFill fetches the gist and compares its `updatedAt` timestamp to the
-  local copy's. If the gist is newer, local presets are silently
-  replaced. If local is newer (or they match), nothing happens.
-- **Auto-push on change** (default on): any create/edit/delete/import is
-  pushed to the gist automatically, debounced by 3 seconds so rapid edits
-  batch into a single request. Because Manifest V3 service workers can be
-  shut down while idle, a pending auto-push can occasionally be dropped if
-  the browser terminates the worker in that 3-second window - the change
-  stays saved locally (marked "local changes pending") and will go out on
-  the next edit, the next browser startup, or a manual **Push Now**.
-- **Manual controls** (options page): **Pull Now** / **Push Now** only act
-  when there's actually something newer to pull/push, and always show a
-  confirmation (with an added/updated/removed/unchanged diff for pulls)
-  before overwriting anything. **Force Pull** / **Force Push** bypass the
-  timestamp check entirely, for when you're sure which copy should win.
+  on an explicit sync (or automatically, per the toggle below).
+- **"Keep in sync automatically"** (default on, one toggle controls both
+  directions):
+  - *Pull side:* DevFill checks the gist and compares its `updatedAt`
+    timestamp to the local copy's whenever you open the popup, open the
+    options page, fill a form, or use the keyboard shortcut - throttled
+    and ETag-conditional so it's cheap to check this often. If the gist
+    is newer, local presets are silently replaced; if local is newer (or
+    they match), nothing happens.
+  - *Push side:* any create/edit/delete/import is pushed to the gist
+    automatically via a `chrome.alarms`-backed queue (durable across
+    Manifest V3 service worker restarts, at the cost of its ~30s minimum
+    delay). The next pull-side check above flushes any still-pending
+    push immediately, so it rarely actually waits the full 30 seconds.
+- **Sync Now** (options page): figures out the direction itself - pulls if
+  the gist is newer, pushes if local is newer, or does nothing if they
+  already match - showing a confirmation (with an added/updated/removed/
+  unchanged diff for pulls) before overwriting anything.
+- **Force Pull** / **Force Push**: bypass the "which side is newer" check
+  entirely, for when you're sure which copy should win.
 
 ### Recovering from conflicts
 

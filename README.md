@@ -86,11 +86,12 @@ doesn't sync extension storage) behaves identically to Chrome.
 
 ### 1. Create a GitHub Personal Access Token
 
-1. Go to **[github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)**
-   (GitHub's fine-grained token page).
-2. Give it a name like "DevFill sync", set an expiration you're comfortable
-   with, and under **Permissions → Account permissions → Gists**, choose
-   **Read and write**. No other permissions/repository access are needed.
+1. Go to **[github.com/settings/tokens/new?scopes=gist](https://github.com/settings/tokens/new?scopes=gist)**
+   (GitHub's classic token page, with the **gist** scope pre-checked).
+   GitHub's Gists API does not support fine-grained tokens - it 403s no
+   matter what permissions you grant one, so it has to be a classic PAT.
+2. Give it a name like "DevFill sync" and set an expiration you're
+   comfortable with. No other scopes are needed.
 3. Generate the token and paste it into the **GitHub Personal Access
    Token** field in DevFill's options page, under **Sync**.
 

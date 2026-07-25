@@ -59,11 +59,11 @@
 
     <div class="sync-grid">
       <label class="field-label" for="pat-input">GitHub Personal Access Token</label>
-      <input type="password" id="pat-input" placeholder="github_pat_..." autocomplete="off" />
+      <input type="password" id="pat-input" placeholder="ghp_..." autocomplete="off" />
       <p class="sync-subhint">
         Stored only in this browser's local storage, never synced.
-        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Create a fine-grained PAT</a>
-        with read/write access to Gists only.
+        <a href="https://github.com/settings/tokens/new?scopes=gist&description=DevFill%20Gist%20Sync" target="_blank" rel="noopener noreferrer">Create a classic PAT</a>
+        with the <strong>gist</strong> scope checked - GitHub's Gists API does not support fine-grained tokens.
       </p>
 
       <label class="field-label" for="gist-id-input">Gist ID</label>

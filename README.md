@@ -77,77 +77,49 @@ auto-matched unless you also extend the matching rules (see below).
 
 ## Syncing presets across computers and browsers
 
-DevFill can keep your presets in sync across machines - and across
-different Chromium browsers (Chrome, Brave, Edge, Arc, etc.) - using a
-single GitHub Gist as the source of truth. This works the same everywhere
-because it doesn't depend on any browser's built-in account sync: DevFill
-talks to `api.github.com` directly with your own token, so Brave (which
-doesn't sync extension storage) behaves identically to Chrome.
+DevFill can keep your presets in sync across machines and browsers using
+a private GitHub Gist as the backup copy. You'll need a GitHub account
+and a personal access token.
 
 ### 1. Create a GitHub Personal Access Token
 
 1. Go to **[github.com/settings/tokens/new?scopes=gist](https://github.com/settings/tokens/new?scopes=gist)**
-   (GitHub's classic token page, with the **gist** scope pre-checked).
-   GitHub's Gists API does not support fine-grained tokens - it 403s no
-   matter what permissions you grant one, so it has to be a classic PAT.
-2. Give it a name like "DevFill sync" and set an expiration you're
-   comfortable with. No other scopes are needed.
-3. Generate the token and paste it into the **GitHub Personal Access
-   Token** field in DevFill's options page, under **Sync**.
-
-The token is stored only in `chrome.storage.local` on that device - it is
-never synced, never logged, and the extension only ever sends it to
-`api.github.com` (declared explicitly in `manifest.json`'s
-`host_permissions`).
+   and generate a token (the **gist** scope is pre-checked for you - leave
+   everything else as-is). It must be a **classic** token; GitHub's
+   fine-grained tokens don't support Gists.
+2. Paste the token into the **GitHub Personal Access Token** field in
+   DevFill's options page, under **Sync**. It's stored only on this
+   device and never leaves it except to talk to GitHub.
 
 ### 2. Connect a Gist
 
-- **Create new gist** - creates a new secret gist (visible only to you)
-  seeded with an empty preset structure, and fills in the Gist ID field.
-  Use **Sync Now** afterward to upload your current local presets to it.
-- **Use existing gist & pull** - if you already have a DevFill gist (e.g.
-  from another machine), paste its ID and click this to pull its presets
-  down immediately.
+- **Create new gist** - makes a new private gist for your presets and
+  fills in the Gist ID field. Click **Sync Now** afterward to upload your
+  current presets to it.
+- **Use existing gist & pull** - already have a DevFill gist from another
+  computer? Paste its ID here and click this to pull its presets down.
 
-### 3. How sync works day-to-day
+### 3. Day-to-day
 
-- **Working store:** presets always read/write instantly from
-  `chrome.storage.local` on the current device - the Gist is only touched
-  on an explicit sync (or automatically, per the toggle below).
-- **"Keep in sync automatically"** (default on, one toggle controls both
-  directions):
-  - *Pull side:* DevFill checks the gist and compares its `updatedAt`
-    timestamp to the local copy's whenever you open the popup, open the
-    options page, fill a form, or use the keyboard shortcut - throttled
-    and ETag-conditional so it's cheap to check this often. If the gist
-    is newer, local presets are silently replaced; if local is newer (or
-    they match), nothing happens.
-  - *Push side:* any create/edit/delete/import is pushed to the gist
-    automatically via a `chrome.alarms`-backed queue (durable across
-    Manifest V3 service worker restarts, at the cost of its ~30s minimum
-    delay). The next pull-side check above flushes any still-pending
-    push immediately, so it rarely actually waits the full 30 seconds.
-- **Sync Now** (options page): figures out the direction itself - pulls if
-  the gist is newer, pushes if local is newer, or does nothing if they
-  already match - showing a confirmation (with an added/updated/removed/
-  unchanged diff for pulls) before overwriting anything.
-- **Force Pull** / **Force Push**: bypass the "which side is newer" check
-  entirely, for when you're sure which copy should win.
+With **"Keep in sync automatically"** turned on (the default), you don't
+need to do anything else - DevFill checks for changes whenever you use
+it, and uploads your edits shortly after you make them.
 
-### Recovering from conflicts
+If you want to sync immediately instead of waiting, click **Sync Now** -
+it figures out whether to pull or push on its own.
 
-A conflict means the Gist and your local presets both changed since the
-last sync (e.g. you edited presets on two machines before either synced).
-DevFill never auto-resolves this - it always requires a manual pull or
-push in that case:
+### If sync gets stuck (a conflict)
 
-- Open **options → Sync**. The status dot will read **red** (a sync error)
-  or **yellow** (local changes pending) - hover the dot for details.
-- Decide which copy should win:
-  - To keep the gist's version and discard local edits: **Force Pull**.
-  - To keep your local edits and overwrite the gist: **Force Push**.
-- If you're not sure, use **Export JSON** first as a backup of your
-  current local presets before forcing either direction.
+This can happen if you edited presets on two computers before either one
+synced. Open **options → Sync** - the status dot turns **red** (an error)
+or **yellow** (unsynced local changes) when this happens.
+
+Decide which copy should win, then:
+- Keep the gist's version, discard local edits: **Force Pull**.
+- Keep your local edits, overwrite the gist: **Force Push**.
+
+Not sure which to pick? Click **Export JSON** first to save a backup of
+your current presets before forcing either direction.
 
 ## Extending field matching
 

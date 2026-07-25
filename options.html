@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DevFill - Manage Presets</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="options">
+  <header class="options-header">
+    <span class="logo">DevFill</span>
+    <span class="subtitle">Manage Presets</span>
+  </header>
+
+  <main class="options-body">
+    <aside class="preset-list-pane">
+      <ul id="preset-list" class="preset-list"></ul>
+      <button id="new-preset-btn" class="btn btn-secondary btn-block">+ New Preset</button>
+
+      <div class="import-export-row">
+        <button id="export-btn" class="btn btn-small">Export JSON</button>
+        <button id="import-btn" class="btn btn-small">Import JSON</button>
+        <input type="file" id="import-file-input" accept="application/json" hidden />
+      </div>
+    </aside>
+
+    <section class="preset-editor-pane">
+      <div id="empty-state" class="empty-state">
+        <p>Select a preset on the left, or create a new one.</p>
+      </div>
+
+      <form id="preset-form" class="preset-form" hidden>
+        <label class="field-label" for="preset-name-input">Preset name</label>
+        <input type="text" id="preset-name-input" placeholder="e.g. Default User" required />
+
+        <label class="field-label" for="preset-json-input">
+          Fields (JSON key/value pairs)
+        </label>
+        <textarea id="preset-json-input" class="json-editor" spellcheck="false" rows="18"></textarea>
+        <p id="json-error" class="status-msg status-error"></p>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Preset</button>
+          <button type="button" id="delete-preset-btn" class="btn btn-danger">Delete</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>

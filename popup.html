@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DevFill</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="popup">
+  <header class="popup-header">
+    <span class="logo">DevFill</span>
+  </header>
+
+  <main class="popup-body">
+    <label class="field-label" for="preset-select">Preset profile</label>
+    <select id="preset-select"></select>
+
+    <button id="fill-preset-btn" class="btn btn-primary">Fill with Preset</button>
+    <button id="fill-random-btn" class="btn btn-secondary">Fill with Random Data</button>
+
+    <label class="toggle-row">
+      <input type="checkbox" id="highlight-toggle" />
+      <span>Highlight filled fields</span>
+    </label>
+
+    <p id="status-msg" class="status-msg" aria-live="polite"></p>
+  </main>
+
+  <footer class="popup-footer">
+    <a href="#" id="manage-presets-link">Manage Presets</a>
+    <span class="shortcut-hint">Alt+Shift+F fills last preset</span>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

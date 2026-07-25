@@ -311,7 +311,6 @@ body.options {
   --faint-2: rgba(29, 52, 80, 0.05);
 
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
 
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 0.16s;
@@ -719,13 +718,3 @@ body.popup {
   letter-spacing: 0.01em;
 }
 
-.df-tagline {
-  margin: 0;
-  padding: 14px 18px 4px;
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-  line-height: 1.5;
-}

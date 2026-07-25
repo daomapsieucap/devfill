@@ -3,7 +3,7 @@
   "name": "DevFill",
   "version": "1.0.0",
   "description": "Fill web forms instantly with preset or random test data. Built for developers.",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "alarms"],
   "host_permissions": ["<all_urls>", "https://api.github.com/*"],
   "background": {
     "service_worker": "background.js"

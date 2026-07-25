@@ -2,7 +2,11 @@
  * DevFill background service worker.
  * - Seeds default presets on first install.
  * - Auto-pulls from the configured Gist on browser startup / extension install.
- * - Debounces an auto-push to the Gist whenever presets change locally.
+ * - Also checks the Gist for changes just-in-time, whenever the user acts
+ *   (opens the popup, fills a form, presses the shortcut) - throttled and
+ *   ETag-conditional so it's cheap even when nothing changed.
+ * - Pushes to the Gist whenever presets change locally, via chrome.alarms
+ *   (durable across service worker restarts) rather than a bare timer.
  * - Handles the Alt+Shift+F keyboard shortcut to fill with the last used preset.
  */
 
@@ -16,58 +20,58 @@ const DEFAULT_PRESETS = {
     email: 'jane.doe@example.com',
     phone: '(555) 123-4567',
     company: 'Acme Corp',
-    jobTitle: 'Software Engineer',
+    jobTitle: 'Example Job Title',
     website: 'https://www.example.com',
-    username: 'janedoe',
-    password: 'DevFill!2024',
-    address: '123 Maple St',
-    address2: 'Apt 4B',
-    city: 'Springfield',
+    username: 'testuser',
+    password: 'TestPassword123!',
+    address: '123 Main Street',
+    address2: 'Apt 1',
+    city: 'Anytown',
     state: 'Illinois',
-    zip: '62704',
+    zip: '00000',
     country: 'United States',
     message: 'This is sample test data filled in by DevFill.',
-    birthDate: '1990-05-14',
-    age: '34'
+    birthDate: '1990-01-01',
+    age: '30'
   },
   'Business Contact': {
-    firstName: 'Michael',
-    lastName: 'Chen',
-    fullName: 'Michael Chen',
-    email: 'michael.chen@example.org',
-    phone: '(415) 555-0199',
-    company: 'Blue Peak Solutions',
-    jobTitle: 'VP of Operations',
+    firstName: 'Alex',
+    lastName: 'Example',
+    fullName: 'Alex Example',
+    email: 'alex.example@example.org',
+    phone: '(555) 234-5678',
+    company: 'Example Company',
+    jobTitle: 'Example Manager',
     website: 'https://www.example.org',
-    username: 'mchen',
-    password: 'BizContact#88',
-    address: '500 Market Street, Suite 2100',
-    address2: '',
-    city: 'San Francisco',
+    username: 'sample.contact',
+    password: 'SamplePassword456!',
+    address: '456 Example Avenue',
+    address2: 'Suite 100',
+    city: 'Exampleville',
     state: 'California',
-    zip: '94105',
+    zip: '99999',
     country: 'United States',
-    message: 'Reaching out regarding a potential partnership opportunity.',
-    birthDate: '1985-11-02',
-    age: '39'
+    message: 'This is a sample business message used for testing contact forms.',
+    birthDate: '1985-01-01',
+    age: '35'
   },
   'Edge Cases': {
-    firstName: "O'Bríen-Ééva",
-    lastName: '张伟-里奇',
-    fullName: "O'Bríen-Ééva 张伟-里奇",
+    firstName: "Ünïcödé'-Tëst",
+    lastName: '测试-Tëst',
+    fullName: "Ünïcödé'-Tëst 测试-Tëst",
     email: 'edge.case+test@sub.example.co.uk',
     phone: '+44 20 7946 0958',
-    company: 'Non-Standard & Co., 丙公司',
+    company: 'Example Co. Ltd. 测试公司',
     jobTitle: 'Head of “Special Projects”',
     website: 'https://xn--exmple-4ua.com/path?query=1&other=2',
     username: 'user.name+tag_99',
     password: 'P@ssw0rd! éèê 123',
-    address: "42 Rüe d'Église, Apt № 3",
+    address: "1 Rüe Tëst, Apt № 3",
     address2: 'c/o Front Desk',
-    city: 'São Paulo',
-    state: 'Åland',
-    zip: 'SW1A 1AA',
-    country: 'Åland Islands',
+    city: 'Tëst Çity',
+    state: 'Tëstland',
+    zip: 'TE5T 1NG',
+    country: 'Testlandia',
     message: 'Line one.\nLine two with "quotes" and <tags> & symbols.\nEmoji: 🚀✨',
     birthDate: '1900-01-01',
     age: '0'
@@ -95,76 +99,121 @@ chrome.runtime.onStartup.addListener(() => {
   runStartupAutoPull();
 });
 
-// ---- Auto-pull on startup -------------------------------------------------
+// ---- Remote change checking (startup AND just-in-time) ---------------------
 //
-// Fetches the Gist, compares `updatedAt` timestamps, and only overwrites
-// local presets if the remote copy is strictly newer. Never blocks the
-// user and never throws - failures are recorded in syncConfig for the
-// popup/options page to surface.
-async function runStartupAutoPull() {
+// One code path handles both "check once when the browser starts" and
+// "check right before the user does something with a preset". It compares
+// the Gist's `updatedAt` against the local copy's and only overwrites local
+// presets if the remote copy is strictly newer. Never blocks the caller and
+// never throws - failures are recorded in syncConfig for the popup/options
+// page to surface.
+const REMOTE_CHECK_THROTTLE_MS = 10 * 1000;
+let lastRemoteCheckAt = 0; // module-scope only, so this resets if the worker restarts - that's fine, it just means the next check after a restart isn't throttled.
+
+async function checkRemoteForChanges({ reason } = {}) {
+  const now = Date.now();
+  if (now - lastRemoteCheckAt < REMOTE_CHECK_THROTTLE_MS) return;
+  lastRemoteCheckAt = now;
+
+  // Push any queued local edit first. Otherwise a pull below could overwrite
+  // an edit that hasn't reached the Gist yet - flushing preserves the
+  // invariant that a pull never clobbers unpushed local changes.
+  await flushPendingPushIfDue();
+
   const config = await DevFillPresetStore.getSyncConfig();
+  // Reuses `autoPullOnStartup` as the single on/off switch for all automatic
+  // remote checks, startup and just-in-time alike - the underlying operation
+  // (compare timestamps, maybe overwrite local) is identical either way, and
+  // one toggle is simpler for the user than two that always move together.
   if (!config.autoPullOnStartup || !config.githubPat || !config.gistId) return;
 
   try {
-    const remote = await DevFillGistSync.fetchGist(config.githubPat, config.gistId);
+    const result = await DevFillGistSync.fetchGistIfChanged(config.githubPat, config.gistId, config.lastEtag);
+
+    if (result.notModified) {
+      await DevFillPresetStore.setSyncConfig({
+        lastSyncedAt: new Date().toISOString(),
+        lastSyncStatus: 'synced'
+      });
+      return;
+    }
+
     const local = await DevFillPresetStore.getStore();
-    const remoteTime = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+    const remoteTime = result.schema.updatedAt ? Date.parse(result.schema.updatedAt) : 0;
     const localTime = local.updatedAt ? Date.parse(local.updatedAt) : 0;
 
     if (remoteTime > localTime) {
-      await DevFillPresetStore.setStore(remote, { silent: true });
-      await DevFillPresetStore.setSyncConfig({
-        lastSyncedAt: new Date().toISOString(),
-        lastSyncStatus: 'synced',
-        lastSyncError: null
-      });
-    } else {
-      // Local is newer (or equal) - a push will handle reconciling it.
-      await DevFillPresetStore.setSyncConfig({
-        lastSyncStatus: localTime > remoteTime ? 'pending' : 'synced'
-      });
+      await DevFillPresetStore.setStore(result.schema, { silent: true });
     }
+    // Always adopt the fresh etag, even when we didn't apply the content
+    // (local was already newer/equal) - it identifies this gist snapshot
+    // regardless, so the next check compares against it instead of getting
+    // another full 200 for content we've already seen.
+    await DevFillPresetStore.setSyncConfig({
+      lastEtag: result.etag,
+      lastSyncedAt: new Date().toISOString(),
+      lastSyncStatus: remoteTime > localTime ? 'synced' : (localTime > remoteTime ? 'pending' : 'synced'),
+      lastSyncError: null
+    });
   } catch (err) {
-    console.error('[DevFill] Auto-pull failed:', err.message);
+    console.error(`[DevFill] Remote check failed (${reason || 'unknown'}):`, err.message);
     await DevFillPresetStore.setSyncConfig({
       lastSyncStatus: 'error',
-      lastSyncError: err.message || 'Auto-pull failed.'
+      lastSyncError: err.message || 'Remote check failed.'
     });
   }
+}
+
+async function runStartupAutoPull() {
+  await checkRemoteForChanges({ reason: 'startup' });
 }
 
 // ---- Auto-push on change ---------------------------------------------------
 //
 // presetStore.js broadcasts `devfill-presets-changed` after any local
-// create/edit/delete/import. Debounced 3s so rapid edits batch into one
-// push. Note: MV3 service workers can be terminated while idle, and a
-// pending setTimeout does not survive that - if the worker is killed
-// mid-debounce, the edit stays local (status "pending") until the next
-// mutation, browser restart, or a manual "Push Now".
-let pushTimer = null;
+// create/edit/delete/import. Scheduled via chrome.alarms rather than
+// setTimeout: MV3 service workers can be terminated while idle, and a
+// pending setTimeout does NOT survive that, silently dropping the push.
+// An alarm does survive it (the browser wakes the worker to fire it), at
+// the cost of chrome.alarms' 30-second minimum delay - a real regression
+// from the old 3s debounce, but flushPendingPushIfDue() (called from
+// checkRemoteForChanges, i.e. on popup open / fill / shortcut) claws most
+// of that latency back by pushing immediately the next time the user
+// actually does something, instead of waiting out the full 30s.
+const AUTO_PUSH_ALARM_NAME = 'devfill-push';
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message && message.action === 'devfill-presets-changed') {
-    scheduleAutoPush();
-  }
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_PUSH_ALARM_NAME) runAutoPush();
 });
 
 function scheduleAutoPush() {
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(runAutoPush, 3000);
+  chrome.alarms.create(AUTO_PUSH_ALARM_NAME, { delayInMinutes: 0.5 });
 }
 
+async function flushPendingPushIfDue() {
+  const alarm = await chrome.alarms.get(AUTO_PUSH_ALARM_NAME);
+  if (!alarm) return;
+  await chrome.alarms.clear(AUTO_PUSH_ALARM_NAME);
+  await runAutoPush();
+}
+
+// Safe to call with nothing pending - it re-reads syncConfig/the store fresh
+// every time and simply bails if sync isn't configured/enabled, so a stray
+// or redundant call (e.g. from flushPendingPushIfDue finding no alarm is a
+// no-op already, but even if it were called anyway) just re-pushes the
+// current state, which is harmless.
 async function runAutoPush() {
-  pushTimer = null;
   const config = await DevFillPresetStore.getSyncConfig();
   if (!config.autoPushOnChange || !config.githubPat || !config.gistId) return;
 
   try {
     const store = await DevFillPresetStore.getStore();
     const result = await DevFillGistSync.updateGist(config.githubPat, config.gistId, store.presets);
-    // Adopt the pushed schema's updatedAt locally so future comparisons agree.
+    // Adopt the pushed schema's updatedAt, and its etag, locally so future
+    // comparisons (both push-conflict checks and conditional GETs) agree.
     await DevFillPresetStore.setStore(result.schema, { silent: true });
     await DevFillPresetStore.setSyncConfig({
+      lastEtag: result.etag,
       lastSyncedAt: new Date().toISOString(),
       lastSyncStatus: 'synced',
       lastSyncError: null
@@ -178,10 +227,28 @@ async function runAutoPush() {
   }
 }
 
+// ---- Cross-context messages -------------------------------------------
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (!message) return;
+  if (message.action === 'devfill-presets-changed') {
+    scheduleAutoPush();
+  } else if (message.action === 'devfill-check-remote') {
+    // Fire-and-forget: no sendResponse call and no `return true`, so the
+    // sender's chrome.runtime.sendMessage promise resolves immediately
+    // instead of waiting on this.
+    checkRemoteForChanges({ reason: message.reason });
+  }
+});
+
 // ---- Keyboard shortcut ------------------------------------------------
 
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== 'fill-last-preset') return;
+
+  // Fire-and-forget, same as the popup's fill buttons - don't make the
+  // shortcut feel laggy waiting on a network round trip.
+  checkRemoteForChanges({ reason: 'pre-fill' });
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) return;

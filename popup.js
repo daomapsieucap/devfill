@@ -52,6 +52,24 @@
     populatePresetDropdown();
   }
 
+  // Kicks background.js's throttled, ETag-conditional remote check so a
+  // gist change made on another device shows up here without waiting for
+  // the next browser startup. Fire-and-forget - loadState() above already
+  // renders from local storage immediately; if this pulls something newer,
+  // the chrome.storage.onChanged listener below refreshes the dropdown.
+  function checkRemoteForChanges(reason) {
+    chrome.runtime.sendMessage({ action: 'devfill-check-remote', reason }).catch(() => {});
+  }
+
+  // If a pull lands while the popup happens to be open (from the check
+  // above, or from the user's own fill click below), keep the dropdown
+  // in sync with whatever background.js just wrote to storage.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.presets) return;
+    presets = (changes.presets.newValue && changes.presets.newValue.presets) || {};
+    populatePresetDropdown();
+  });
+
   async function loadSyncDot() {
     const config = await DevFillPresetStore.getSyncConfig();
     const configured = !!(config.githubPat && config.gistId);
@@ -93,10 +111,15 @@
     }
     settings.lastUsedPreset = name;
     await DevFillPresetStore.setSettings(settings);
+    // Fire-and-forget - don't make the fill wait on a network round trip.
+    // The popup-open check (below) already made the local copy near-certain
+    // to be current by the time the user gets around to clicking this.
+    checkRemoteForChanges('pre-fill');
     sendFillMessage({ preset: presets[name], random: false, highlight: highlightToggle.checked });
   });
 
   fillRandomBtn.addEventListener('click', () => {
+    checkRemoteForChanges('pre-fill');
     sendFillMessage({ preset: {}, random: true, highlight: highlightToggle.checked });
   });
 
@@ -112,4 +135,5 @@
 
   loadState();
   loadSyncDot();
+  checkRemoteForChanges('popup-open');
 })();

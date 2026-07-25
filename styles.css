@@ -415,6 +415,22 @@ body.popup {
   line-height: 1;
 }
 
+.df-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.df-github-link {
+  display: flex;
+  color: var(--muted);
+  transition: color var(--duration-fast) var(--ease-smooth);
+}
+
+.df-github-link:hover {
+  color: var(--ink);
+}
+
 .df-status-group {
   display: flex;
   align-items: center;

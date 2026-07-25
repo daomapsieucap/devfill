@@ -135,20 +135,6 @@ All field-detection logic lives in `content.js`:
   random value for a semantic type when no preset value is available, or
   when using "Fill with Random Data".
 
-## File structure
-
-```
-manifest.json        Manifest V3 config, permissions, keyboard shortcut
-popup.html/js         Popup UI: preset picker, fill buttons, highlight toggle, sync dot
-options.html/js       Preset management + Sync section (Gist connect/pull/push)
-content.js            Field detection + filling, injected into every page
-background.js         Service worker: default seeding, auto-pull/auto-push, shortcut handler
-lib/faker.js           Small dependency-free fake data generator
-lib/presetStore.js     Preset CRUD over chrome.storage.local + sync config, auto-push hook
-lib/gistSync.js        GitHub Gist REST client (create/fetch/update, error handling)
-styles.css             Shared styling for popup + options page
-```
-
 ## Known limitations
 
 - Fields inside cross-origin `<iframe>`s are not reachable (browser

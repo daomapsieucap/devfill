@@ -511,10 +511,6 @@ body.popup {
   margin: 0 0 14px;
 }
 
-.df-select-wrap[hidden] {
-  display: none;
-}
-
 .df-select {
   appearance: none;
   -webkit-appearance: none;

@@ -8,15 +8,23 @@
   'use strict';
 
   const presetSelect = document.getElementById('preset-select');
+  const presetCountEl = document.getElementById('df-preset-count');
+  const versionEl = document.getElementById('df-version');
   const fillPresetBtn = document.getElementById('fill-preset-btn');
   const fillRandomBtn = document.getElementById('fill-random-btn');
   const highlightToggle = document.getElementById('highlight-toggle');
+  const highlightStateEl = document.getElementById('highlight-state');
   const manageLink = document.getElementById('manage-presets-link');
   const statusMsg = document.getElementById('status-msg');
+  const lastFillLine = document.getElementById('last-fill-line');
+  const syncGroupBtn = document.getElementById('sync-status-group');
   const syncDot = document.getElementById('sync-status-dot');
+  const syncLabel = document.getElementById('sync-status-label');
 
   let presets = {};
-  let settings = { lastUsedPreset: '', highlightFields: true };
+  let settings = { lastUsedPreset: '', highlightFields: true, lastFill: null };
+
+  versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
 
   function showStatus(text, isError) {
     statusMsg.textContent = text;
@@ -27,9 +35,11 @@
   function populatePresetDropdown() {
     presetSelect.innerHTML = '';
     const names = Object.keys(presets);
+    presetCountEl.textContent = '01 · ' + names.length;
+
     if (names.length === 0) {
       const opt = document.createElement('option');
-      opt.textContent = 'No presets - add one in Manage Presets';
+      opt.textContent = 'no presets - see manage presets';
       opt.disabled = true;
       presetSelect.appendChild(opt);
       fillPresetBtn.disabled = true;
@@ -45,11 +55,38 @@
     presetSelect.value = names.includes(settings.lastUsedPreset) ? settings.lastUsedPreset : names[0];
   }
 
+  // "2m ago" / "3h ago" / "5d ago" - popups are short-lived, so this is
+  // computed once per open rather than kept ticking with a live timer.
+  function formatRelativeTime(isoString) {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  function renderLastFill() {
+    const lastFill = settings.lastFill;
+    if (!lastFill) {
+      lastFillLine.innerHTML = '<span class="df-accent">#</span>no fills yet this session';
+      return;
+    }
+    const where = lastFill.host ? ` on ${lastFill.host}` : '';
+    const count = `${lastFill.count} field${lastFill.count === 1 ? '' : 's'}`;
+    lastFillLine.innerHTML =
+      `<span class="df-accent">#</span>last fill · ${formatRelativeTime(lastFill.at)} · ${count}${where}`;
+  }
+
   async function loadState() {
     presets = await DevFillPresetStore.getPresets();
     settings = await DevFillPresetStore.getSettings();
     highlightToggle.checked = settings.highlightFields !== false;
+    highlightStateEl.textContent = highlightToggle.checked ? 'on' : 'off';
     populatePresetDropdown();
+    renderLastFill();
   }
 
   // Kicks background.js's throttled, ETag-conditional remote check so a
@@ -74,17 +111,20 @@
     const config = await DevFillPresetStore.getSyncConfig();
     const configured = !!(config.githubPat && config.gistId);
     let color = 'gray';
-    let label = 'not configured';
+    let label = 'sync off';
+    let pulse = false;
     if (configured) {
-      if (config.lastSyncStatus === 'synced') { color = 'green'; label = 'in sync'; }
-      else if (config.lastSyncStatus === 'error') { color = 'red'; label = 'error: ' + (config.lastSyncError || 'last sync failed'); }
-      else { color = 'yellow'; label = 'local changes pending'; }
+      if (config.lastSyncStatus === 'synced') { color = 'green'; label = 'in sync'; pulse = true; }
+      else if (config.lastSyncStatus === 'error') { color = 'red'; label = 'sync error'; }
+      else { color = 'yellow'; label = 'pending'; pulse = true; }
     }
-    syncDot.className = 'sync-dot sync-dot-' + color;
-    syncDot.title = 'Sync: ' + label + ' (click to manage)';
+    syncDot.className = 'df-status-dot df-status-' + color + (pulse ? ' df-pulse' : '');
+    syncLabel.textContent = label;
+    const titleDetail = config.lastSyncStatus === 'error' && config.lastSyncError ? `: ${config.lastSyncError}` : '';
+    syncGroupBtn.title = `Sync: ${label}${titleDetail} (click to manage)`;
   }
 
-  syncDot.addEventListener('click', () => {
+  syncGroupBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('options.html') + '#sync-section' });
   });
 
@@ -98,6 +138,12 @@
       const response = await chrome.tabs.sendMessage(tab.id, Object.assign({ action: 'devfill-fill' }, payload));
       const count = response && typeof response.filledCount === 'number' ? response.filledCount : 0;
       showStatus(`Filled ${count} field${count === 1 ? '' : 's'}.`);
+
+      let host = '';
+      try { host = new URL(tab.url).hostname; } catch (e) { /* chrome:// or similar - leave blank */ }
+      settings.lastFill = { at: new Date().toISOString(), count, host };
+      await DevFillPresetStore.setSettings(settings);
+      renderLastFill();
     } catch (err) {
       showStatus('Could not reach this page (try reloading it).', true);
     }
@@ -125,6 +171,7 @@
 
   highlightToggle.addEventListener('change', async () => {
     settings.highlightFields = highlightToggle.checked;
+    highlightStateEl.textContent = highlightToggle.checked ? 'on' : 'off';
     await DevFillPresetStore.setSettings(settings);
   });
 

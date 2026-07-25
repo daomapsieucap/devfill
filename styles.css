@@ -288,12 +288,18 @@ body.options {
 /* =====================================================================
    Popup redesign (from Claude Design: "DevFill Popup.dc.html")
    Namespaced under df- so it can't collide with the options page above.
-   Font stacks keep the design's mono/serif choices but drop the remote
-   Google Fonts import the mockup used - an extension popup shouldn't
-   phone home to fonts.googleapis.com on every open, and the fallback
-   chain (ui-monospace/Menlo, Georgia) already reads close to identical
-   for this look.
+   The mockup pulled JetBrains Mono from Google Fonts at runtime; instead
+   the variable woff2 (latin subset, weights 100-800) is bundled under
+   fonts/ so the popup never phones home to fonts.googleapis.com on open.
    ===================================================================== */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("fonts/JetBrainsMono-Variable.woff2") format("woff2");
+}
 
 :root {
   --paper: #f7f8fa;
@@ -310,7 +316,7 @@ body.options {
   --faint: rgba(29, 52, 80, 0.16);
   --faint-2: rgba(29, 52, 80, 0.05);
 
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 0.16s;
@@ -365,6 +371,11 @@ body.popup {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.df-brand-icon {
+  border-radius: 6px;
+  flex: none;
 }
 
 .df-brand-text {
@@ -499,6 +510,10 @@ body.popup {
   margin: 0 0 14px;
 }
 
+.df-select-wrap[hidden] {
+  display: none;
+}
+
 .df-select {
   appearance: none;
   -webkit-appearance: none;
@@ -544,10 +559,10 @@ body.popup {
   justify-content: flex-start;
   gap: 0.7ch;
   width: 100%;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12.5px;
   letter-spacing: 0.01em;
   cursor: pointer;
   text-align: left;

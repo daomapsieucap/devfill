@@ -13,68 +13,26 @@
 importScripts('lib/presetStore.js', 'lib/gistSync.js');
 
 const DEFAULT_PRESETS = {
-  'Default User': {
-    firstName: 'Jane',
-    lastName: 'Doe',
-    fullName: 'Jane Doe',
-    email: 'jane.doe@example.com',
-    phone: '(555) 123-4567',
-    company: 'Acme Corp',
-    jobTitle: 'Example Job Title',
-    website: 'https://www.example.com',
-    username: 'testuser',
-    password: 'TestPassword123!',
-    address: '123 Main Street',
-    address2: 'Apt 1',
-    city: 'Anytown',
-    state: 'Illinois',
-    zip: '00000',
-    country: 'United States',
-    message: 'This is sample test data filled in by DevFill.',
-    birthDate: '1990-01-01',
-    age: '30'
-  },
-  'Business Contact': {
-    firstName: 'Alex',
-    lastName: 'Example',
-    fullName: 'Alex Example',
-    email: 'alex.example@example.org',
-    phone: '(555) 234-5678',
-    company: 'Example Company',
-    jobTitle: 'Example Manager',
-    website: 'https://www.example.org',
-    username: 'sample.contact',
-    password: 'SamplePassword456!',
-    address: '456 Example Avenue',
-    address2: 'Suite 100',
-    city: 'Exampleville',
-    state: 'California',
-    zip: '99999',
-    country: 'United States',
-    message: 'This is a sample business message used for testing contact forms.',
-    birthDate: '1985-01-01',
-    age: '35'
-  },
-  'Edge Cases': {
-    firstName: "Ünïcödé'-Tëst",
-    lastName: '测试-Tëst',
-    fullName: "Ünïcödé'-Tëst 测试-Tëst",
-    email: 'edge.case+test@sub.example.co.uk',
-    phone: '+44 20 7946 0958',
-    company: 'Example Co. Ltd. 测试公司',
-    jobTitle: 'Head of “Special Projects”',
-    website: 'https://xn--exmple-4ua.com/path?query=1&other=2',
-    username: 'user.name+tag_99',
-    password: 'P@ssw0rd! éèê 123',
-    address: "1 Rüe Tëst, Apt № 3",
-    address2: 'c/o Front Desk',
-    city: 'Tëst Çity',
-    state: 'Tëstland',
-    zip: 'TE5T 1NG',
-    country: 'Testlandia',
-    message: 'Line one.\nLine two with "quotes" and <tags> & symbols.\nEmoji: 🚀✨',
-    birthDate: '1900-01-01',
-    age: '0'
+  Default: {
+    firstName: '',
+    lastName: '',
+    fullName: '',
+    email: '',
+    phone: '',
+    company: '',
+    jobTitle: '',
+    website: '',
+    username: '',
+    password: '',
+    address: '',
+    address2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: '',
+    message: '',
+    birthDate: '',
+    age: ''
   }
 };
 
@@ -89,7 +47,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     }
     const settings = await DevFillPresetStore.getSettings();
     if (!settings.lastUsedPreset) {
-      await DevFillPresetStore.setSettings({ lastUsedPreset: 'Default User', highlightFields: true });
+      await DevFillPresetStore.setSettings({ lastUsedPreset: 'Default', highlightFields: true });
     }
   }
   runStartupAutoPull();

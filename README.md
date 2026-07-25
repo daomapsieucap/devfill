@@ -57,9 +57,8 @@ page directly) to:
   merges a file of the same shape (`{ "Preset Name": { ...fields } }`) back
   in, overwriting any existing presets with matching names.
 
-Three presets ship by default: **Default User**, **Business Contact**, and
-**Edge Cases** (unicode names, symbols, long/short values - useful for
-stress-testing validation and layout).
+A single empty **Default** preset ships out of the box - fill in its
+fields (or add your own presets) from the options page.
 
 ### Recognized field keys
 

@@ -9,15 +9,7 @@
   <div class="df-card">
     <header class="df-header">
       <div class="df-brand">
-        <svg width="46" height="22.3" viewBox="0 0 132 64" role="img" aria-label="DevFill logo">
-          <rect x="0" y="27" width="30" height="11" rx="3" fill="var(--yellow)"></rect>
-          <rect x="102" y="27" width="30" height="11" rx="3" fill="var(--yellow)"></rect>
-          <circle cx="66" cy="32" r="29" fill="var(--panel)"></circle>
-          <circle cx="66" cy="32" r="24" fill="var(--paper)"></circle>
-          <circle cx="66" cy="32" r="13" fill="var(--blue)"></circle>
-          <circle cx="66" cy="32" r="6" fill="var(--rim)"></circle>
-          <circle cx="62.5" cy="28.5" r="2.6" fill="var(--paper)"></circle>
-        </svg>
+        <img class="df-brand-icon" src="icons/icon48.png" width="24" height="24" alt="DevFill logo" />
         <div class="df-brand-text">
           <span class="df-brand-name">devfill</span>
           <span id="df-version" class="df-brand-version"></span>
@@ -41,23 +33,23 @@
         <span id="df-preset-count" class="df-section-count">01 · 0</span>
       </div>
 
-      <label class="df-select-wrap">
+      <label id="preset-select-wrap" class="df-select-wrap">
         <select id="preset-select" class="df-select"></select>
         <span class="df-select-caret">▾</span>
       </label>
 
       <div class="df-actions">
-        <button id="fill-preset-btn" type="button" class="df-btn df-btn-primary">
-          <span class="df-sigil">$</span>
-          <span>fill --preset</span>
-          <span class="df-spacer"></span>
-          <span class="df-key-hint">↵</span>
-        </button>
-        <button id="fill-random-btn" type="button" class="df-btn df-btn-secondary">
+        <button id="fill-random-btn" type="button" class="df-btn df-btn-primary">
           <span class="df-sigil">$</span>
           <span>fill --random</span>
           <span class="df-spacer"></span>
-          <span class="df-key-hint-muted">⇧R</span>
+          <span class="df-key-hint">↵</span>
+        </button>
+        <button id="fill-preset-btn" type="button" class="df-btn df-btn-secondary">
+          <span class="df-sigil">$</span>
+          <span>fill --preset</span>
+          <span class="df-spacer"></span>
+          <span class="df-key-hint-muted">⇧P</span>
         </button>
       </div>
 

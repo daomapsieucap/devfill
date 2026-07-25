@@ -8,6 +8,7 @@
   'use strict';
 
   const presetSelect = document.getElementById('preset-select');
+  const presetSelectWrap = document.getElementById('preset-select-wrap');
   const presetCountEl = document.getElementById('df-preset-count');
   const versionEl = document.getElementById('df-version');
   const fillPresetBtn = document.getElementById('fill-preset-btn');
@@ -38,13 +39,11 @@
     presetCountEl.textContent = '01 · ' + names.length;
 
     if (names.length === 0) {
-      const opt = document.createElement('option');
-      opt.textContent = 'no presets - see manage presets';
-      opt.disabled = true;
-      presetSelect.appendChild(opt);
+      presetSelectWrap.hidden = true;
       fillPresetBtn.disabled = true;
       return;
     }
+    presetSelectWrap.hidden = false;
     fillPresetBtn.disabled = false;
     names.forEach((name) => {
       const opt = document.createElement('option');

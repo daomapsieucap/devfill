@@ -121,20 +121,6 @@ Decide which copy should win, then:
 Not sure which to pick? Click **Export JSON** first to save a backup of
 your current presets before forcing either direction.
 
-## Extending field matching
-
-All field-detection logic lives in `content.js`:
-
-- `FIELD_RULES` - ordered list of `{ type, patterns }` regexes tested
-  against a normalized signature built from the field's attributes and
-  label. Add a new rule (or extend an existing pattern) to recognize more
-  field names. More specific patterns must come before general ones.
-- `PRESET_KEY_MAP` - maps each semantic type to the preset JSON key(s)
-  that can supply its value.
-- `randomForType` in `content.js` (backed by `lib/faker.js`) - generates a
-  random value for a semantic type when no preset value is available, or
-  when using "Fill with Random Data".
-
 ## Known limitations
 
 - Fields inside cross-origin `<iframe>`s are not reachable (browser

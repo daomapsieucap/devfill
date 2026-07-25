@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="icons/icon128.png" width="64" height="64" alt="DevFill icon" />
+
 # DevFill
 
 Fill web forms instantly with preset or random test data. Built for developers.

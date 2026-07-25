@@ -172,6 +172,7 @@ body.options {
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 13px;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .preset-list-item:hover { background: var(--color-bg-alt); }

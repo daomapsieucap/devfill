@@ -362,6 +362,7 @@ body.popup {
   background: var(--paper);
   color: var(--ink-2);
   font-family: var(--font-mono);
+  font-size: 12px;
   border-radius: 10px;
 }
 
@@ -399,7 +400,7 @@ body.popup {
 
 .df-brand-name {
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--ink);
   letter-spacing: -0.01em;
@@ -408,7 +409,7 @@ body.popup {
 
 .df-brand-version {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 9px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
@@ -458,7 +459,7 @@ body.popup {
 
 .df-status-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -471,7 +472,7 @@ body.popup {
 .df-prompt {
   margin: 0 0 16px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.01em;
 }
@@ -512,7 +513,7 @@ body.popup {
 
 .df-section-text {
   font-weight: 700;
-  font-size: 10.5px;
+  font-size: 9px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink);
@@ -527,7 +528,7 @@ body.popup {
 }
 
 .df-section-count {
-  font-size: 9.5px;
+  font-size: 8px;
   letter-spacing: 0.1em;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -552,7 +553,7 @@ body.popup {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   border-radius: 6px;
   cursor: pointer;
   letter-spacing: 0.01em;
@@ -571,7 +572,7 @@ body.popup {
   top: 50%;
   transform: translateY(-50%);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   pointer-events: none;
 }
 
@@ -591,7 +592,7 @@ body.popup {
   padding: 10px 14px;
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 11px;
   letter-spacing: 0.01em;
   cursor: pointer;
   text-align: left;
@@ -623,14 +624,14 @@ body.popup {
 .df-spacer { flex: 1; }
 
 .df-key-hint {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.08em;
   opacity: 0.55;
   text-transform: uppercase;
 }
 
 .df-key-hint-muted {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
@@ -657,7 +658,7 @@ body.popup {
   gap: 0.9ch;
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 11px;
   color: var(--ink);
   letter-spacing: 0.01em;
 }
@@ -685,7 +686,7 @@ body.popup {
   display: none;
   color: var(--ink);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }
@@ -695,7 +696,7 @@ body.popup {
 .df-check-text { display: inline-flex; align-items: baseline; gap: 0.5ch; }
 
 .df-check-state {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.06em;
   color: var(--muted);
 }
@@ -704,7 +705,7 @@ body.popup {
   min-height: 14px;
   margin: 8px 0 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted);
 }
 /* .status-error (shared rule above) already colors this red when applied. */
@@ -729,7 +730,7 @@ body.popup {
   color: var(--yellow-text);
   text-decoration: none;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 10px;
   letter-spacing: 0.02em;
   background-image: linear-gradient(currentColor, currentColor);
   background-repeat: no-repeat;
@@ -757,7 +758,7 @@ body.popup {
 .df-last-fill {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.01em;
 }

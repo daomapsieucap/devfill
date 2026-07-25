@@ -62,19 +62,6 @@ page directly) to:
 A single empty **Default** preset ships out of the box - fill in its
 fields (or add your own presets) from the options page.
 
-### Recognized field keys
-
-DevFill matches form fields to preset keys by inspecting each field's
-`name`, `id`, `placeholder`, `autocomplete`, and associated `<label>` text.
-Keys it understands out of the box:
-
-`firstName`, `lastName`, `fullName` (or `name`), `email`, `phone`,
-`company`, `jobTitle`, `website`, `username`, `password`, `address`,
-`address2`, `city`, `state`, `zip`, `country`, `message`, `birthDate`, `age`
-
-Any other key you add to a preset is stored fine but won't be
-auto-matched unless you also extend the matching rules (see below).
-
 ## Syncing presets across computers and browsers
 
 DevFill can keep your presets in sync across machines and browsers using

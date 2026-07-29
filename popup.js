@@ -98,29 +98,52 @@
   }
 
   // If a pull lands while the popup happens to be open (from the check
-  // above, or from the user's own fill click below), keep the dropdown
-  // in sync with whatever background.js just wrote to storage.
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !changes.presets) return;
-    presets = (changes.presets.newValue && changes.presets.newValue.presets) || {};
+  // above, or from the user's own fill click below), or a preset change
+  // arrives from another device via chrome.storage.sync, keep the dropdown
+  // in sync with whatever background.js/another device just wrote.
+  chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (!DevFillPresetStore.isPresetStorageChange(changes, area)) return;
+    presets = await DevFillPresetStore.getPresets();
     populatePresetDropdown();
   });
 
+  // One dot has to summarize two independent sync paths: the automatic
+  // chrome.storage.sync backend (see presetBackend in presetStore.js,
+  // relevant to every user) and the opt-in GitHub Gist (relevant only if
+  // configured). Chrome Sync being active is the normal "good" state for
+  // most users, so it's checked first; Gist only overrides that when it
+  // has something more specific/urgent to say (an error) or when it's the
+  // only thing actually working (Chrome Sync degraded but Gist is caught up).
   async function loadSyncDot() {
     const config = await DevFillPresetStore.getSyncConfig();
-    const configured = !!(config.githubPat && config.gistId);
+    const gistConfigured = !!(config.githubPat && config.gistId);
+    const chromeSyncOk = config.presetBackend === 'sync';
+
     let color = 'gray';
-    let label = 'sync off';
+    let label = 'not synced';
     let pulse = false;
-    if (configured) {
-      if (config.lastSyncStatus === 'synced') { color = 'green'; label = 'in sync'; pulse = true; }
-      else if (config.lastSyncStatus === 'error') { color = 'red'; label = 'sync error'; }
-      else { color = 'yellow'; label = 'pending'; pulse = true; }
+    let title = 'Presets are stored on this device only.';
+
+    if (gistConfigured && config.lastSyncStatus === 'error') {
+      color = 'red'; label = 'gist error';
+      title = 'Gist sync error' + (config.lastSyncError ? `: ${config.lastSyncError}` : '.');
+    } else if (chromeSyncOk) {
+      color = 'green'; label = 'synced'; pulse = true;
+      title = 'Presets sync automatically via Chrome Sync.';
+    } else if (gistConfigured && config.lastSyncStatus === 'synced') {
+      color = 'green'; label = 'gist synced'; pulse = true;
+      title = 'Chrome Sync is unavailable - presets are synced via your Gist instead.';
+    } else if (gistConfigured && config.lastSyncStatus === 'pending') {
+      color = 'yellow'; label = 'gist pending'; pulse = true;
+      title = 'Local changes are waiting to push to your Gist.';
+    } else if (config.presetBackendDegradeReason) {
+      color = 'red'; label = 'not synced';
+      title = 'Chrome Sync is unavailable and no Gist is configured - presets are stored on this device only.';
     }
+
     syncDot.className = 'df-status-dot df-status-' + color + (pulse ? ' df-pulse' : '');
     syncLabel.textContent = label;
-    const titleDetail = config.lastSyncStatus === 'error' && config.lastSyncError ? `: ${config.lastSyncError}` : '';
-    syncGroupBtn.title = `Sync: ${label}${titleDetail} (click to manage)`;
+    syncGroupBtn.title = `${title} (click to manage)`;
   }
 
   syncGroupBtn.addEventListener('click', () => {

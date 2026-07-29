@@ -40,6 +40,13 @@
   const syncDot = document.getElementById('sync-status-dot');
   const syncStatusText = document.getElementById('sync-status-text');
 
+  // ---- Storage backend badge elements -------------------------------------
+
+  const backendDot = document.getElementById('backend-status-dot');
+  const backendLabel = document.getElementById('backend-status-label');
+  const backendHint = document.getElementById('backend-status-hint');
+  const retrySyncBtn = document.getElementById('retry-sync-btn');
+
   let presets = {};
   let settings = {};
   let syncConfig = {};
@@ -209,7 +216,54 @@
     gistIdInput.value = syncConfig.gistId || '';
     autoSyncToggle.checked = !!(syncConfig.autoPullOnStartup && syncConfig.autoPushOnChange);
     renderSyncStatus();
+    renderStorageBackendStatus();
   }
+
+  // A green dot here only means the last write to chrome.storage.sync
+  // succeeded - Chrome gives extensions no way to confirm it actually
+  // reached another device, so that caveat is always shown, not just on
+  // failure. Degrade reasons are the only failures chrome.storage.sync
+  // itself surfaces to us (quota/rate limits) - see presetStore.js's header
+  // comment for why "user isn't signed into sync" can't be detected here.
+  const SYNC_CAVEAT =
+    "This confirms the save succeeded, not that it reached your other devices - " +
+    "check your browser's sync settings (e.g. chrome://settings/syncSetup, or " +
+    "brave://settings/braveSync with the Extensions category enabled), or use " +
+    'Gist sync below for a guaranteed cross-device copy.';
+
+  const DEGRADE_REASON_TEXT = {
+    item_quota: "One of your presets is too large for your browser's sync storage (8KB per item). Shrink it, or rely on Gist sync instead.",
+    total_quota: "Your presets exceed your browser's total sync storage limit (100KB). Remove some, or rely on Gist sync instead.",
+    max_items: "You have more presets than browser sync allows (512 items). Remove some, or rely on Gist sync instead.",
+    write_rate: 'Too many changes were made too quickly for sync\'s rate limit. Wait a bit, then retry.',
+    unknown: 'Browser sync rejected the last write for an unknown reason.'
+  };
+
+  function renderStorageBackendStatus() {
+    if (syncConfig.presetBackend === 'sync') {
+      backendDot.className = 'sync-dot sync-dot-green';
+      backendLabel.textContent = 'Synced via Chrome Sync';
+      backendHint.textContent = SYNC_CAVEAT;
+      retrySyncBtn.hidden = true;
+    } else {
+      const reason = syncConfig.presetBackendDegradeReason;
+      backendDot.className = 'sync-dot sync-dot-' + (reason ? 'red' : 'gray');
+      backendLabel.textContent = reason ? 'Chrome Sync unavailable - stored locally' : 'Stored locally';
+      backendHint.textContent = reason ? (DEGRADE_REASON_TEXT[reason] || DEGRADE_REASON_TEXT.unknown) : SYNC_CAVEAT;
+      retrySyncBtn.hidden = !reason;
+    }
+  }
+
+  retrySyncBtn.addEventListener('click', async () => {
+    retrySyncBtn.disabled = true;
+    backendLabel.textContent = 'Retrying...';
+    try {
+      syncConfig = await DevFillPresetStore.migrateToSyncBackend();
+    } finally {
+      retrySyncBtn.disabled = false;
+      renderStorageBackendStatus();
+    }
+  });
 
   function renderSyncStatus() {
     const configured = !!(syncConfig.githubPat && syncConfig.gistId);
@@ -422,15 +476,20 @@
   }
 
   // Keep the UI live if background.js changes syncConfig/presets (e.g. an
-  // auto-pull, or an auto-push landing after its alarm fires).
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
-    if (changes.syncConfig) {
+  // auto-pull, an auto-push landing after its alarm fires, a preset backend
+  // migration/degrade, or a preset change arriving from another device via
+  // chrome.storage.sync).
+  chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (area === 'local' && changes.syncConfig) {
       syncConfig = Object.assign({}, syncConfig, changes.syncConfig.newValue);
       renderSyncStatus();
+      renderStorageBackendStatus();
     }
-    if (changes.presets && !form.contains(document.activeElement)) {
-      presets = (changes.presets.newValue && changes.presets.newValue.presets) || {};
+    // Sync-area deltas are index/shard fragments, not the whole store, so
+    // (unlike the old local-only listener) this always re-fetches via
+    // getStore() rather than reading `newValue` directly.
+    if (DevFillPresetStore.isPresetStorageChange(changes, area) && !form.contains(document.activeElement)) {
+      presets = await DevFillPresetStore.getPresets();
       renderList();
     }
   });

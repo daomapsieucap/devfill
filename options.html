@@ -14,6 +14,15 @@
 
   <main class="options-body">
     <aside class="preset-list-pane">
+      <div class="backend-status">
+        <div class="backend-status-row">
+          <span id="backend-status-dot" class="sync-dot sync-dot-gray" title="Checking storage backend..."></span>
+          <span id="backend-status-label" class="backend-status-label">Checking storage backend…</span>
+        </div>
+        <p id="backend-status-hint" class="sync-subhint"></p>
+        <button type="button" id="retry-sync-btn" class="btn btn-small" hidden>Retry Chrome Sync</button>
+      </div>
+
       <ul id="preset-list" class="preset-list"></ul>
       <button id="new-preset-btn" class="btn btn-secondary btn-block">+ New Preset</button>
 
@@ -54,8 +63,10 @@
       <span id="sync-status-text" class="sync-status-text">Not configured</span>
     </h2>
     <p class="sync-hint">
-      Presets are cached locally in this browser and synced across machines
-      and browsers through a single GitHub Gist.
+      Presets sync automatically across your signed-in devices via your browser's
+      built-in sync (see the storage badge above). GitHub Gist sync below is an
+      optional, durable fallback - useful as a manual backup, or if browser sync
+      isn't available to you.
     </p>
 
     <div class="sync-grid">

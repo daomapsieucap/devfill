@@ -298,6 +298,28 @@ body.options {
   margin: 4px 0 10px;
 }
 
+/* ---------- Preset storage backend badge ---------- */
+
+.backend-status {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backend-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.backend-status-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.backend-status .sync-dot { cursor: default; }
+
 /* =====================================================================
    Popup redesign (from Claude Design: "DevFill Popup.dc.html")
    Namespaced under df- so it can't collide with the options page above.
@@ -463,6 +485,9 @@ body.popup {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
+  line-height: 1;
+  position: relative;
+  top: 1px;
 }
 
 .df-body {

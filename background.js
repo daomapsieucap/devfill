@@ -1,6 +1,8 @@
 /**
  * DevFill background service worker.
  * - Seeds default presets on first install.
+ * - Migrates presets to the chrome.storage.sync backend once, on install/
+ *   startup (see DevFillPresetStore.ensureMigrated).
  * - Auto-pulls from the configured Gist on browser startup / extension install.
  * - Also checks the Gist for changes just-in-time, whenever the user acts
  *   (opens the popup, fills a form, presses the shortcut) - throttled and
@@ -50,10 +52,16 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       await DevFillPresetStore.setSettings({ lastUsedPreset: 'Default', highlightFields: true });
     }
   }
+  // One-time, after any default-preset seeding above so a fresh install's
+  // defaults get migrated in too - no-ops on every later install/update.
+  await DevFillPresetStore.ensureMigrated();
   runStartupAutoPull();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
+  // Defensive re-check: covers an update landing while Chrome was closed,
+  // where onInstalled's timing could be missed. Cheap no-op if already done.
+  await DevFillPresetStore.ensureMigrated();
   runStartupAutoPull();
 });
 
@@ -190,7 +198,12 @@ async function runAutoPush() {
 chrome.runtime.onMessage.addListener((message) => {
   if (!message) return;
   if (message.action === 'devfill-presets-changed') {
-    scheduleAutoPush();
+    // 'urgent' comes from presetStore.js falling back off chrome.storage.sync
+    // (a write failure) - push to Gist right away, if configured, instead of
+    // waiting out the normal 30s debounce, since local + Gist are now the
+    // only durable copies of the edit.
+    if (message.urgent) runAutoPush();
+    else scheduleAutoPush();
   } else if (message.action === 'devfill-check-remote') {
     // Fire-and-forget: no sendResponse call and no `return true`, so the
     // sender's chrome.runtime.sendMessage promise resolves immediately

@@ -25,17 +25,18 @@ Fill web forms instantly with preset or random test data. Built for developers.
 
 ## Usage
 
-- Click the DevFill icon, pick a preset from the dropdown, and click **Fill
-  with Preset**, or click **Fill with Random Data** to ignore presets
-  entirely and generate fresh fake data for every field.
-- Toggle **Highlight filled fields** to briefly outline each field DevFill
-  writes to.
-- Press **Alt+Shift+F** on any page to instantly re-fill using the last
-  preset you used (no need to open the popup). You can remap this shortcut
-  at `chrome://extensions/shortcuts`.
-- DevFill never submits a form; it only fills fields and fires `input`,
-  `change`, and `blur` events so React/Vue/Angular-controlled forms pick up
-  the change.
+Click the DevFill icon to open the popup.
+
+| Action | How | Result |
+| --- | --- | --- |
+| Fill with preset | Pick a preset from the dropdown, then click **Fill with Preset** | Matched fields are filled with that preset's values |
+| Fill with random data | Click **Fill with Random Data** | Every field is filled with fresh fake data, presets ignored |
+| Quick re-fill | Press **Alt+Shift+F** on any page | Re-fills using the last preset you used, no need to open the popup (remap at `chrome://extensions/shortcuts`) |
+| Highlight filled fields | Toggle in the popup | Briefly outlines each field DevFill just wrote to |
+
+> DevFill never submits a form; it only fills fields and fires `input`,
+> `change`, and `blur` events so React/Vue/Angular-controlled forms pick up
+> the change.
 
 ## Managing presets
 

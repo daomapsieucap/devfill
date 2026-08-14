@@ -144,3 +144,7 @@ your current presets before forcing either direction.
 - Custom widgets that don't use real `<input>`/`<select>`/`contenteditable`
   elements (e.g. some date pickers rendered entirely in `<div>`s/canvas)
   won't be detected.
+- Submissions made with DevFill-generated data are for testing only and
+  may get flagged as spam, since DevFill doesn't pass bot-check widgets
+  (e.g. a CAPTCHA checkbox); check your spam folder if a test submission
+  doesn't show up where expected.

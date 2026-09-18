@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DevFill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fill web forms instantly with preset or random test data. Built for developers.",
   "homepage_url": "https://github.com/daomapsieucap/devfill",
   "permissions": ["storage", "activeTab", "alarms"],

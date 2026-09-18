@@ -70,7 +70,7 @@
   function renderLastFill() {
     const lastFill = settings.lastFill;
     if (!lastFill) {
-      lastFillLine.innerHTML = '<span class="df-accent">#</span>no fills yet this session';
+      lastFillLine.innerHTML = '<span class="df-accent">#</span>no fills yet';
       return;
     }
     const where = lastFill.host ? ` on ${lastFill.host}` : '';

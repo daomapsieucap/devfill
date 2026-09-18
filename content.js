@@ -282,6 +282,16 @@
     if (el.tagName === 'SELECT') return true;
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden') return false;
+    // Anti-spam honeypot fields (Gravity Forms, WPForms, Netlify, ...) stay
+    // in the DOM and often pass the check above - they're hidden via a
+    // display:none *ancestor* (doesn't affect this element's own computed
+    // display) or shoved off-screen instead. A real visitor never sees or
+    // fills these, so mimic that: skip anything not actually rendered
+    // on-screen.
+    if (el.offsetParent === null && style.position !== 'fixed') return false;
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.right <= 0 || rect.bottom <= 0) return false;
     return true;
   }
 

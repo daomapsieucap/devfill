@@ -292,6 +292,11 @@
     if (el.offsetWidth === 0 && el.offsetHeight === 0) return false;
     const rect = el.getBoundingClientRect();
     if (rect.right <= 0 || rect.bottom <= 0) return false;
+    // "Visually hidden" pattern (sr-only classes, and some honeypots):
+    // shrunk to ~1px and clipped rather than display:none'd or moved
+    // off-screen, so none of the checks above catch it.
+    if ((rect.width <= 1 || rect.height <= 1) && style.overflow === 'hidden') return false;
+    if (style.clipPath === 'inset(100%)' || /^rect\(0px,?\s*0px,?\s*0px,?\s*0px\)$/.test(style.clip)) return false;
     return true;
   }
 

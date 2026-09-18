@@ -233,11 +233,10 @@ chrome.commands.onCommand.addListener(async (command) => {
     preset,
     random: false,
     highlight: settings.highlightFields !== false
-  }).then((response) => {
-    const count = response && typeof response.filledCount === 'number' ? response.filledCount : 0;
+  }).then(() => {
     let host = '';
     try { host = new URL(tab.url).hostname; } catch (e) { /* chrome:// or similar - leave blank */ }
-    settings.lastFill = { at: new Date().toISOString(), count, host };
+    settings.lastFill = { at: new Date().toISOString(), host };
     return DevFillPresetStore.setSettings(settings);
   }).catch(() => {
     // No content script on this page (e.g. chrome:// URL) - nothing to do.

@@ -74,9 +74,8 @@
       return;
     }
     const where = lastFill.host ? ` on ${lastFill.host}` : '';
-    const count = `${lastFill.count} field${lastFill.count === 1 ? '' : 's'}`;
     lastFillLine.innerHTML =
-      `<span class="df-accent">#</span>last fill · ${formatRelativeTime(lastFill.at)} · ${count}${where}`;
+      `<span class="df-accent">#</span>last fill · ${formatRelativeTime(lastFill.at)}${where}`;
   }
 
   async function loadState() {
@@ -158,12 +157,12 @@
     }
     try {
       const response = await chrome.tabs.sendMessage(tab.id, Object.assign({ action: 'devfill-fill' }, payload));
-      const count = response && typeof response.filledCount === 'number' ? response.filledCount : 0;
-      showStatus(`Filled ${count} field${count === 1 ? '' : 's'}.`);
+      const filled = !!(response && response.filledCount > 0);
+      showStatus(filled ? 'Filled.' : 'No fillable fields found.', !filled);
 
       let host = '';
       try { host = new URL(tab.url).hostname; } catch (e) { /* chrome:// or similar - leave blank */ }
-      settings.lastFill = { at: new Date().toISOString(), count, host };
+      settings.lastFill = { at: new Date().toISOString(), host };
       await DevFillPresetStore.setSettings(settings);
       renderLastFill();
     } catch (err) {
